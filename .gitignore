@@ -1,5 +1,23 @@
-.pio
-.vscode/.browse.c_cpp.db*
-.vscode/c_cpp_properties.json
-.vscode/launch.json
-.vscode/ipch
+# PlatformIO specific
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# VSCode specific
+.vscode/
+
+# Compiled binary and hex files
+*.elf
+*.bin
+*.hex
+
+# Other files to ignore
+*.pyc
+__pycache__/
+*.gitignore
+
+# Ignore sensitive data
+secrets.h
+
+# Ignore other unnecessary files
+.history/
