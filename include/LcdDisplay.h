@@ -4,18 +4,20 @@
 #include <LiquidCrystal_I2C.h>
 #include "config.h" // Assuming LCD_ADDRESS, LCD_COLS, LCD_ROWS are defined here
 
+#define LCD_ADDRESS 0x27
+#define LCD_COLS 16
+#define LCD_ROWS 2
+
+
 class LcdDisplay {
-    // Add other configurations here, for example, LCD settings
-    #define LCD_ADDRESS 0x27
-    #define LCD_COLS 16
-    #define LCD_ROWS 2
-
-
+    
 public:
     static LcdDisplay& Get();
     void init();
     void displayMessage(const String& message, int col, int row);
     void clear();
+
+
 private:
     LcdDisplay(); // Private constructor
     LiquidCrystal_I2C lcd;

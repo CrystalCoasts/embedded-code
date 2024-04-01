@@ -10,12 +10,18 @@
 // const char* password = "Theknight17";
 // const char* webAppUrl = "https://script.google.com/macros/s/AKfycbzYB2tJTz9TIIO9vl1gc1nN6zH9-gDVDOI8uOUWh_cr3ZKJ1NBX-CI4uqTXxFpiLNZ8/exec";
 
+// int mem = LCD_ADDRESS;
+
+const char* mySSID = "networkName";
+const char* myPASSWD = "networkPassword";
+const char* myWEB_APP_URL = "https://script.google.com/macros/s/AKfycbzYB2tJTz9TIIO9vl1gc1nN6zH9-gDVDOI8uOUWh_cr3ZKJ1NBX-CI4uqTXxFpiLNZ8/exec";
+
 
 void setup() {
   Serial.begin(115200);
   TempSensor::Get().begin();
   LcdDisplay::Get().init();
-  WiFi.begin(SSID, PASSWD);
+  WiFi.begin(mySSID, myPASSWD);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     LcdDisplay::Get().displayMessage("Connecting WIFI",0,0);
@@ -39,7 +45,7 @@ void loop() {
 
   if (WiFi.status()==WL_CONNECTED){
     HTTPClient http;
-    http.begin(WEB_APP_URL);
+    http.begin(myWEB_APP_URL);
     http.addHeader("Content-Type","application/json");
 
     String httpRequestData = "{\"temperature\":" + String(temperature) + ",\"humidity\":" + String(humidity) + "}";
