@@ -6,36 +6,40 @@
 
 #include "config.h"
 
-// const char* ssid = "medievaltimes24";
-// const char* password = "Theknight17";
-// const char* webAppUrl = "https://script.google.com/macros/s/AKfycbzYB2tJTz9TIIO9vl1gc1nN6zH9-gDVDOI8uOUWh_cr3ZKJ1NBX-CI4uqTXxFpiLNZ8/exec";
 
-// int mem = LCD_ADDRESS;
 
-const char* mySSID = "networkName";
-const char* myPASSWD = "networkPassword";
-const char* myWEB_APP_URL = "https://script.google.com/macros/s/AKfycbzYB2tJTz9TIIO9vl1gc1nN6zH9-gDVDOI8uOUWh_cr3ZKJ1NBX-CI4uqTXxFpiLNZ8/exec";
+const char* SSID = "Diane";
+const char* PASSWD = "12345678";
+const char* WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyP09LCH7aRHxhd2tVU9Q3xyEZBOODTN3lYw031-epCypqzabFI7mX5h6Ue1ONw6iNY/exec";
 
 
 void setup() {
   Serial.begin(115200);
   TempSensor::Get().begin();
   LcdDisplay::Get().init();
-  WiFi.begin(mySSID, myPASSWD);
+  WiFi.begin(SSID, PASSWD);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     LcdDisplay::Get().displayMessage("Connecting WIFI",0,0);
     Serial.println("Connecting ...");
+    delay(1500);
+    LcdDisplay::Get().clear();
   }
   LcdDisplay::Get().displayMessage("WiFi Connected",0,0);
   Serial.println("WiFi ✓");
-  delay(1000);
+  delay(1500);
   LcdDisplay::Get().clear();
 }
 
 void loop() {
   
-  
+   while (WiFi.status() != WL_CONNECTED) {
+      delay(1000);
+      LcdDisplay::Get().displayMessage("Connecting WIFI",0,0);
+      Serial.println("Connecting ...");
+      delay(1500);
+      LcdDisplay::Get().clear();
+  }
   float temperature = TempSensor::Get().readTemperature();
   float humidity = TempSensor::Get().readHumidity();
   String m1 = "Temp: " + String(temperature, 2) + " C";
@@ -43,9 +47,11 @@ void loop() {
   LcdDisplay::Get().displayMessage(m1, 0, 0);
   LcdDisplay::Get().displayMessage(m2, 0, 1);
 
+ 
+
   if (WiFi.status()==WL_CONNECTED){
     HTTPClient http;
-    http.begin(myWEB_APP_URL);
+    http.begin(WEB_APP_URL);
     http.addHeader("Content-Type","application/json");
 
     String httpRequestData = "{\"temperature\":" + String(temperature) + ",\"humidity\":" + String(humidity) + "}";

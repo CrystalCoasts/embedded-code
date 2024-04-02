@@ -3,7 +3,7 @@
 
 
 
-LcdDisplay::LcdDisplay() : lcd(LCD_ADDRESS, LCD_COLS, LCD_ROWS) {}
+LcdDisplay::LcdDisplay() : lcd(LCD_ADDR, LCD_COLS, LCD_ROWS) {}
 
 LcdDisplay& LcdDisplay::Get() {
     static LcdDisplay instance; // Guaranteed to be created only once
