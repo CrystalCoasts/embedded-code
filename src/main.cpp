@@ -14,6 +14,8 @@ const char* WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyP09LCH7aRHx
 
 
 void setup() {
+
+  Serial.begin("Just testing");
   Serial.begin(115200);
   TempSensor::Get().begin();
   LcdDisplay::Get().init();
