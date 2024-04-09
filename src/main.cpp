@@ -3,7 +3,7 @@
 #include "LcdDisplay.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
-
+#include "TurbiditySensor.h"
 #include "config.h"
 
 
@@ -15,48 +15,51 @@ const char* WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyP09LCH7aRHx
 
 void setup() {
 
-  Serial.begin("Just testing");
+
   Serial.begin(115200);
   TempSensor::Get().begin();
-  LcdDisplay::Get().init();
+  lcd.init();
   WiFi.begin(SSID, PASSWD);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
-    LcdDisplay::Get().displayMessage("Connecting WIFI",0,0);
+    lcd.displayMessage("Connecting WIFI",0,0);
     Serial.println("Connecting ...");
     delay(1500);
-    LcdDisplay::Get().clear();
+    lcd.clear();
   }
-  LcdDisplay::Get().displayMessage("WiFi Connected",0,0);
+  lcd.displayMessage("WiFi Connected",0,0);
   Serial.println("WiFi ✓");
   delay(1500);
-  LcdDisplay::Get().clear();
+  lcd.clear();
+
+  // tbdty.calibrate();
 }
 
 void loop() {
   
    while (WiFi.status() != WL_CONNECTED) {
       delay(1000);
-      LcdDisplay::Get().displayMessage("Connecting WIFI",0,0);
+      lcd.displayMessage("Connecting WIFI",0,0);
       Serial.println("Connecting ...");
       delay(1500);
-      LcdDisplay::Get().clear();
+      lcd.clear();
   }
-  float temperature = TempSensor::Get().readTemperature();
-  float humidity = TempSensor::Get().readHumidity();
-  String m1 = "Temp: " + String(temperature, 2) + " C";
-  String m2 = "Humi: "+String(humidity)+ "%";
-  LcdDisplay::Get().displayMessage(m1, 0, 0);
-  LcdDisplay::Get().displayMessage(m2, 0, 1);
+  // float temperature = TempSensor::Get().readTemperature();
+  // float humidity = TempSensor::Get().readHumidity();
+  // String m1 = "Temp: " + String(temperature, 2) + " C";
+  // String m2 = "Humi: "+String(humidity)+ "%";
+  // lcd.displayMessage(m1, 0, 0);
+  // lcd.displayMessage(m2, 0, 1);
 
- 
+  float turbidity = tbdty.readTurbidity();
+  Serial.println(turbidity);
 
   if (WiFi.status()==WL_CONNECTED){
     HTTPClient http;
     http.begin(WEB_APP_URL);
     http.addHeader("Content-Type","application/json");
 
-    String httpRequestData = "{\"temperature\":" + String(temperature) + ",\"humidity\":" + String(humidity) + "}";
+    String httpRequestData = "{\"temperature\":" + String(turbidity) + ",\"humidity\":" + String(turbidity) + "}";
     int httpResponseCode = http.POST(httpRequestData);
     // String payload = http.getString(); // Get the request response payload
     // Serial.println(payload);

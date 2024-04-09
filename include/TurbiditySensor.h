@@ -1,15 +1,12 @@
-// TurbiditySensor.h
 #ifndef TURBIDITY_SENSOR_H
 #define TURBIDITY_SENSOR_H
 
 #include <EEPROM.h>
-// #include "config.h"
+#include "config.h"
 
-
-// //button for turbidity sensor settings
-constexpr short BUTTON_CALIB = 2; //change pin
-constexpr short TBDITY_SAMPLES = 25; // Number of samples for averaging
-constexpr short TBDITY_ANALOG_PIN = 1;
+// constexpr short BUTTON_CALIB = 2;
+constexpr short READ_SAMPLES = 25;
+constexpr short T_ANALOG_PIN = 36; // we need one of the adc1 pins, adc2 pins cannot be used while wifi is in use
 constexpr int EEPROM_VCLEAR_ADDRESS = 0;
 
 class TurbiditySensor {
@@ -24,14 +21,15 @@ public:
     float readTurbidity();
 
 private:
-    TurbiditySensor(); // Private constructor
+    TurbiditySensor();  // Private constructor
     unsigned int cumulativeRead = 0;
-    float vClear = 2.85; // Default calibration value
-    static constexpr short TBDITY_SAMPLES = 25;
+    float vClear = 15; // Default calibration value
 
     // Deleted copy constructor and assignment operator to prevent copying
     TurbiditySensor(const TurbiditySensor&) = delete;
     TurbiditySensor& operator=(const TurbiditySensor&) = delete;
 };
+
+extern TurbiditySensor& tbdty;  // Declaration of the global singleton instance
 
 #endif // TURBIDITY_SENSOR_H

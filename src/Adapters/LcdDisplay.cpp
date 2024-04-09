@@ -2,7 +2,7 @@
 
 
 
-
+LcdDisplay& lcd =LcdDisplay::Get();
 LcdDisplay::LcdDisplay() : lcd(LCD_ADDR, LCD_COLS, LCD_ROWS) {}
 
 LcdDisplay& LcdDisplay::Get() {

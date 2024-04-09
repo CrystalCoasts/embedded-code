@@ -26,4 +26,5 @@ private:
     LcdDisplay& operator=(const LcdDisplay&) = delete;
 };
 
+extern LcdDisplay& lcd;
 #endif
