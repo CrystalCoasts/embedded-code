@@ -4,18 +4,20 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include "FS.h"
-#include "SPIFFS.h"
+#include "SPIFFS.h" //SPI Flash File System -- basically on board memory
 #include "esp_sleep.h"
+#include <ArduinoJson.h>
 
 //our classes
 #include "TempSensor.h"
 #include "LcdDisplay.h"
 #include "TurbiditySensor.h"
+#include "AtlasKit.h"
 // #include "config.h"
 
 const char* SSID = "Diane";
 const char* PASSWD = "12345678";
-const char* WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyP09LCH7aRHxhd2tVU9Q3xyEZBOODTN3lYw031-epCypqzabFI7mX5h6Ue1ONw6iNY/exec";
+const char* WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzdREDYLRb1ew8CjwGY_WnrIU0UWW0Sn3Wr4XdT8Jv0VjXuQxJV7GVCKZeYtEb2zrKb/exec";
 
 
 // Forward declarations
@@ -23,8 +25,9 @@ void saveDataToCSV(String data);
 void uploadData(String data);
 void SensorTask(void *pvParameters);
 void dataTransmissionTask(void *pvParameters);
-String prepareJsonPayload(const String& csvData);
+String prepareJsonPayload(float pH, float oxygenLevel, float salinity, float turbidity, float tds, float temperature);
 String readDataFromCSV();
+void validateSensorReadings(float& humidity, float& temperature, float& turbidity, float& salinity, float& tds);
 
 void setup() {
     // General setup
@@ -41,6 +44,7 @@ void setup() {
     // Initialize sensors
     temp.begin();
     tbdty.begin();
+    qSensor.begin();
     lcd.begin();
 
     // Initialize WiFi
@@ -53,35 +57,33 @@ void setup() {
 
 void SensorTask(void *pvParameters) {
     while (1) {
+
+        //these should get destroyed when loop ends and recreated... shouldn't affect memory
         float humidity = temp.readHumidity();
         float waterTemp = temp.readTemperature(CELSIUS);
         float turbidity = tbdty.readTurbidity();
+        float salinity = qSensor.read(MType::SAL); // Read salinity
+        float tds = qSensor.read(MType::TDS); // Read TDS
 
-        // Validate sensor readings
-        if (isnan(humidity) || humidity < 0) {
-            Serial.println("Invalid humidity reading");
-            humidity = 0.0;  // Set a default or error value
-        }
-        if (isnan(waterTemp) || waterTemp < -40 || waterTemp > 85) {  // Assuming -40 to 85°C is the valid range
-            Serial.println("Invalid temperature reading");
-            waterTemp = 0.0;  // Set a default or error value
-        }
-        if (isnan(turbidity) || turbidity < 0) {
-            Serial.println("Invalid turbidity reading");
-            turbidity = 0.0;  // Set a default or error value
-        }
+        float pH = 0.0;
+        float oxygenLevel = 0.0;
+        
+        validateSensorReadings(humidity, waterTemp, turbidity, salinity, tds);
+        
+        String jsonPayload = prepareJsonPayload(pH, oxygenLevel, salinity, turbidity, tds, waterTemp);
+        uploadData(jsonPayload); // Now passing the correct JSON string
 
-        // Process and display data
         Serial.print("Humidity: ");
         Serial.print(humidity);
-        Serial.print(" Water Temp: ");
+        Serial.print(", Water Temp: ");
         Serial.print(waterTemp);
-        Serial.print(" Turbidity: ");
-        Serial.println(turbidity);
+        Serial.print(", Turbidity: ");
+        Serial.print(turbidity);
+        Serial.print(", Salinity: ");
+        Serial.print(salinity);
+        Serial.print(", TDS: ");
+        Serial.println(tds);
 
-        // Save data to CSV
-        String dataString = String(waterTemp) + "," + String(humidity) + "," + String(turbidity);
-        saveDataToCSV(dataString);
 
         // Sleep or delay before next read
         vTaskDelay(pdMS_TO_TICKS(5000)); // 5 seconds delay
@@ -89,21 +91,20 @@ void SensorTask(void *pvParameters) {
 }
 
 
-String prepareJsonPayload(const String& csvData) {
-    int firstComma = csvData.indexOf(',');
-    int secondComma = csvData.indexOf(',', firstComma + 1);
-    int thirdComma = csvData.indexOf(',', secondComma + 1);
+String prepareJsonPayload(float pH, float oxygenLevel, float salinity, float turbidity, float tds, float temperature) {
+    StaticJsonDocument<256> doc;
+    doc["pH"] = isnan(pH) ? JsonVariant() : pH;
+    doc["oxygenLevel"] = isnan(oxygenLevel) ? JsonVariant() : oxygenLevel;
+    doc["salinity"] = isnan(salinity) ? JsonVariant() : salinity;
+    doc["turbidity"] = isnan(turbidity) ? JsonVariant() : turbidity;
+    doc["TDS"] = isnan(tds) ? JsonVariant() : tds;
+    doc["temperature"] = isnan(temperature) ? JsonVariant() : temperature;
 
-    String temperature = csvData.substring(0, firstComma);
-    String humidity = csvData.substring(firstComma + 1, secondComma);
-    String turbidity = csvData.substring(secondComma + 1, thirdComma); // Adjust based on actual data positions
-
-    // Construct the JSON payload
-    String jsonPayload = "{\"temperature\":" + temperature +
-                         ",\"humidity\":" + humidity +
-                         ",\"turbidity\":" + turbidity + "}";
+    String jsonPayload;
+    serializeJson(doc, jsonPayload);
     return jsonPayload;
 }
+
 
 void saveDataToCSV(String data) {
     // Serial.println("Attempting to save data...");
@@ -131,12 +132,12 @@ String readDataFromCSV() {
     return data;
 }
 
-void uploadData(String data) {
+
+void uploadData(String jsonData) {
     HTTPClient http;
     http.begin(WEB_APP_URL);
     http.addHeader("Content-Type", "application/json");
-    String httpRequestData = prepareJsonPayload(data);
-    int httpResponseCode = http.POST(httpRequestData);
+    int httpResponseCode = http.POST(jsonData);
     if (httpResponseCode > 0) {
         Serial.print("HTTP Response code: ");
         Serial.println(httpResponseCode);
@@ -147,6 +148,7 @@ void uploadData(String data) {
     }
     http.end();
 }
+
 
 void dataTransmissionTask(void *pvParameters) {
     while (1) {
@@ -159,5 +161,32 @@ void dataTransmissionTask(void *pvParameters) {
         vTaskDelay(pdMS_TO_TICKS(10000)); // Delay to prevent excessive retries
     }
 }
+
+void validateSensorReadings(float& humidity, float& temperature, float& turbidity, float& salinity, float& tds) {
+    // Check for NaN values or any other sensor-specific invalid data
+    if (isnan(humidity) || humidity < 0 || humidity > 100) {  // Humidity should be between 0% and 100%
+        Serial.println("Invalid humidity reading");
+        humidity = 0.0;  
+    }
+    if (isnan(temperature) || temperature < -40 || temperature > 85) {  // Check reasonable bounds for temperature
+        Serial.println("Invalid temperature reading");
+        temperature = 0.0;  
+    }
+    if (isnan(turbidity) || turbidity < 0) {  // Turbidity should not be negative
+        Serial.println("Invalid turbidity reading");
+        turbidity = 0.0;  
+    }
+    if (isnan(salinity) || salinity < 0) {  // Salinity should not be negative
+        Serial.println("Invalid salinity reading");
+        salinity = 0.0;  
+    }
+    if (isnan(tds) || tds < 0) {  // TDS (Total Dissolved Solids) should not be negative
+        Serial.println("Invalid TDS reading");
+        tds = 0.0;  
+    }
+
+    //maybe make it bool and use it to decide if data will be sent to .csv or not
+}
+
 
 void loop(){}

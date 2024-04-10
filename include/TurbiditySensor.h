@@ -4,18 +4,17 @@
 #include <EEPROM.h>
 #include "config.h"
 
-// constexpr short BUTTON_CALIB = 2;
-constexpr short READ_SAMPLES = 25;
-constexpr short T_ANALOG_PIN = 36; // we need one of the adc1 pins, adc2 pins cannot be used while wifi is in use
-constexpr int EEPROM_VCLEAR_ADDRESS = 0;
+
 
 class TurbiditySensor {
 public:
-    static TurbiditySensor& Get() {
-        static TurbiditySensor instance;
-        return instance;
-    }
 
+    // constexpr short BUTTON_CALIB = 2;
+    static constexpr short READ_SAMPLES = 25;
+    static constexpr short T_ANALOG_PIN = 36; // we need one of the adc1 pins, adc2 pins cannot be used while wifi is in use
+    static constexpr uint8_t EEPROM_VCLEAR_ADDRESS = 0;
+
+    static TurbiditySensor& Get();
     void begin();
     void calibrate();
     float readTurbidity();

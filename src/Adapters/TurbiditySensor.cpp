@@ -12,6 +12,11 @@ void TurbiditySensor::begin() {
     EEPROM.get(EEPROM_VCLEAR_ADDRESS, vClear); // Use a specific EEPROM address for vClear
 }
 
+TurbiditySensor& TurbiditySensor::Get() {
+    static TurbiditySensor instance;
+    return instance;
+}
+
 void TurbiditySensor::calibrate() {
     cumulativeRead = 0;
     for (int i = 0; i < READ_SAMPLES; ++i) {

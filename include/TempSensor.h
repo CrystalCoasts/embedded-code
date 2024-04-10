@@ -5,10 +5,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
-constexpr uint8_t ONE_WIRE_BUS = 4;
-constexpr uint8_t DHTPIN = 14;
-constexpr uint8_t DHTTYPE = DHT11; // change to actual dht
-constexpr uint8_t TEMP_INDEX = 0;
+
 
 enum TEMP {CELSIUS,FARENHEIT};
 
@@ -16,6 +13,11 @@ enum TEMP {CELSIUS,FARENHEIT};
 class TempSensor
 {
 public:
+    static constexpr uint8_t ONE_WIRE_BUS = 4;
+    static constexpr uint8_t DHTPIN = 14;
+    static constexpr uint8_t DHTTYPE = DHT11; // change to actual dht
+    static constexpr uint8_t TEMP_INDEX = 0;
+
     static TempSensor& Get();
     void begin();
     float readTemperature(TEMP tempScale);
