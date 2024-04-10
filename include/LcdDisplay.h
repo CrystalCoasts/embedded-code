@@ -13,7 +13,7 @@ class LcdDisplay {
     
 public:
     static LcdDisplay& Get();
-    void init();
+    void begin();
     void displayMessage(const String& message, int col, int row);
     void clear();
 

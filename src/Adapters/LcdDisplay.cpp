@@ -10,7 +10,7 @@ LcdDisplay& LcdDisplay::Get() {
     return instance;
 }
 
-void LcdDisplay::init() {
+void LcdDisplay::begin() {
     lcd.init();
     lcd.backlight();
     
