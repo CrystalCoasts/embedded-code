@@ -19,7 +19,7 @@ public:
     static WaterQualitySensor& Get();
     void begin();
     float read(MType type);
-    void sendCommand(const String& command);
+    uint8_t sendCommand(const String& command);
     String readResponse();
     float parseValue(const char* data);
 

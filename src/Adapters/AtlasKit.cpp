@@ -13,11 +13,12 @@ void WaterQualitySensor::begin() {
     Wire.begin();
 }
 
-void WaterQualitySensor::sendCommand(const String& command) {
+uint8_t WaterQualitySensor::sendCommand(const String& command) {
     Wire.beginTransmission(EZO_CIRCUIT_I2C_ADDRESS);
     Wire.write(command.c_str());
-    Wire.endTransmission();
+    uint8_t result = Wire.endTransmission();
     delay(command[0] == 'R' ? 570 : 300); // Delay depends on command type
+    return result == 0; // Return true if transmission was successful
 }
 
 String WaterQualitySensor::readResponse() {
@@ -33,8 +34,13 @@ String WaterQualitySensor::readResponse() {
 
 
 float WaterQualitySensor::read(MType type) {
-    sendCommand("R");  // Send the read command
+    if (!sendCommand("R")) {
+        return NAN;  // Return NaN if command sending failed
+    }
     String response = readResponse();
+    if (response.isEmpty()) {
+        return NAN;  // Return NaN if response is empty
+    }
     char buffer[response.length() + 1];
     response.toCharArray(buffer, sizeof(buffer));
     char* data = strtok(buffer, ",");
@@ -46,6 +52,7 @@ float WaterQualitySensor::read(MType type) {
 
     return parseValue(data);
 }
+
 
 float WaterQualitySensor::parseValue(const char* data) {
     if (!data) return NAN; // Return NaN if data is null

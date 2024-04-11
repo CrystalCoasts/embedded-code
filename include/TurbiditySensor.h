@@ -13,17 +13,22 @@ public:
     static constexpr short READ_SAMPLES = 25;
     static constexpr short T_ANALOG_PIN = 36; // we need one of the adc1 pins, adc2 pins cannot be used while wifi is in use
     static constexpr uint8_t EEPROM_VCLEAR_ADDRESS = 0;
+    
 
     static TurbiditySensor& Get();
     void begin();
-    void calibrate();
+    float calibrate();
     float readTurbidity();
 
 private:
-    TurbiditySensor();  // Private constructor
+
+    static constexpr float VREF = 3.3;
+    static constexpr short MAX_NTU = 4050;
+    static constexpr short ADC_DIGITAL = 4095;
     unsigned int cumulativeRead = 0;
     float vClear = 15; // Default calibration value
 
+    TurbiditySensor();  // Private constructor
     // Deleted copy constructor and assignment operator to prevent copying
     TurbiditySensor(const TurbiditySensor&) = delete;
     TurbiditySensor& operator=(const TurbiditySensor&) = delete;

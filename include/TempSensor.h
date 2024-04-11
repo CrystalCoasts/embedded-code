@@ -15,7 +15,7 @@ class TempSensor
 public:
     static constexpr uint8_t ONE_WIRE_BUS = 4;
     static constexpr uint8_t DHTPIN = 14;
-    static constexpr uint8_t DHTTYPE = DHT11; // change to actual dht
+    static constexpr uint8_t DHTTYPE = DHT11;
     static constexpr uint8_t TEMP_INDEX = 0;
 
     static TempSensor& Get();
