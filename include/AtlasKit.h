@@ -14,7 +14,7 @@ enum class MType {
 class WaterQualitySensor {
 public:
 
-    static constexpr uint8_t EZO_CIRCUIT_I2C_ADDRESS = 100;
+    static constexpr uint8_t EZO_CIRCUIT_I2C_ADDRESS = 0x3C;
 
     static WaterQualitySensor& Get();
     void begin();
