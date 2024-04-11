@@ -15,7 +15,7 @@
 #include "AtlasKit.h"
 // #include "config.h"
 
-const char* SSID = "Diane";
+const char* SSID = "nathan-wifi";
 const char* PASSWD = "12345678";
 const char* WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzdREDYLRb1ew8CjwGY_WnrIU0UWW0Sn3Wr4XdT8Jv0VjXuQxJV7GVCKZeYtEb2zrKb/exec";
 

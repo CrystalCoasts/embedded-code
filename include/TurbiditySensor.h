@@ -11,7 +11,7 @@ public:
 
     // constexpr short BUTTON_CALIB = 2;
     static constexpr short READ_SAMPLES = 25;
-    static constexpr short T_ANALOG_PIN = 36; // we need one of the adc1 pins, adc2 pins cannot be used while wifi is in use
+    static constexpr short T_ANALOG_PIN = 32; // we need one of the adc1 pins, adc2 pins cannot be used while wifi is in use
     static constexpr uint8_t EEPROM_VCLEAR_ADDRESS = 0;
     
 
