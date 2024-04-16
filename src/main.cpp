@@ -10,12 +10,10 @@
 
 //our classes
 #include "TempSensor.h"
-#include "LcdDisplay.h"
 #include "TurbiditySensor.h"
-#include "AtlasKit.h"
 // #include "config.h"
 
-const char* SSID = "nathan-wifi";
+const char* SSID = "Diane";
 const char* PASSWD = "12345678";
 const char* WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzdREDYLRb1ew8CjwGY_WnrIU0UWW0Sn3Wr4XdT8Jv0VjXuQxJV7GVCKZeYtEb2zrKb/exec";
 
@@ -29,7 +27,7 @@ void SensorTask(void *pvParameters);
 void dataTransmissionTask(void *pvParameters);
 String prepareJsonPayload(float pH, float oxygenLevel, float salinity, float turbidity, float tds, float temperature);
 String readDataFromCSV();
-void validateSensorReadings(float& humidity, float& temperature, float& turbidity, float& salinity, float& tds);
+bool validateSensorReadings(float& humidity, float& temperature, float& turbidity, float& salinity, float& tds, float& ph, float& oxygenLevel);
 void printStackSpace();
 void printDataFromCSV();
 
@@ -57,8 +55,6 @@ void setup() {
     // Initialize sensors
     temp.begin();
     tbdty.begin();
-    qSensor.begin();
-    lcd.begin();
 
     // Initialize WiFi
     WiFi.begin(SSID, PASSWD);
@@ -77,27 +73,50 @@ void setup() {
 
 void SensorTask(void *pvParameters) {
     while (1) {
-        //value = round(value*1000)/1000 -> round to 2 decimal places
+        // value = round(value*1000)/1000 -> round to 2 decimal places
         float humidity = round(temp.readHumidity()*100)/100;
         float waterTemp = round(temp.readTemperature(CELSIUS)*100)/100;
         float turbidity = round(tbdty.readTurbidity()*100)/100;
-        float salinity = round(qSensor.read(MType::SAL)*100)/100;
-        float tds = round(qSensor.read(MType::TDS)*100)/100;
-        // Assuming pH and oxygenLevel are determined here as well
-        float pH = 0.0;
-        float oxygenLevel = 0.0;
 
-        validateSensorReadings(humidity, waterTemp, turbidity, salinity, tds);
+        // float humidity = 96.5;
+        // float waterTemp = 76.0;
+        // float turbidity = 3000;
+        
+
+
+        // default values until we get the sensors
+        float salinity = 232.0;
+        float tds = 111.0;
+        float pH = 7.0;
+        float oxygenLevel = 36.0;
+
+        bool validReading =validateSensorReadings(humidity, waterTemp, turbidity, salinity, tds, pH, oxygenLevel);
 
         String jsonPayload = prepareJsonPayload(pH, oxygenLevel, salinity, turbidity, tds, waterTemp);
+        
+        if(validReading){
+            if (WiFi.status() == WL_CONNECTED) {
+                Serial.println("Wifi and data ok");
+                uploadData(jsonPayload);
+            }
 
-        if (WiFi.status() == WL_CONNECTED) {
-            // If connected, send current sensor data immediately
-            uploadData(jsonPayload);
-        } else {
-            // If not connected, store data locally
-            saveDataToCSV(jsonPayload);
+            
+            else{
+                Serial.println("Wifi failed, but valid data");
+                saveDataToCSV(jsonPayload);
+                Serial.println(jsonPayload);
+                
+            }
+                
         }
+
+        else{
+            Serial.println("invalid data... ignoring wifi");
+            Serial.println(jsonPayload);
+
+        }
+        
+        
         vTaskDelay(pdMS_TO_TICKS(5000)); // 5 seconds delay for next sensor read
     }
 }
@@ -152,6 +171,7 @@ String readDataFromCSV() {
 
 void uploadData(String jsonData) {
     if (WiFi.status() == WL_CONNECTED) {
+        Serial.println("Sending to Google.");
         HTTPClient http;
         http.begin(WEB_APP_URL);
         http.addHeader("Content-Type", "application/json");
@@ -179,6 +199,7 @@ void dataTransmissionTask(void *pvParameters) {
 
     while (1) {
         if (WiFi.status() == WL_CONNECTED) {
+            // Serial.println("Sending csv.");
             if (SPIFFS.exists("/data.csv")) {
                 String data = readDataFromCSV();
                 if (!data.isEmpty()) {
@@ -197,7 +218,7 @@ void dataTransmissionTask(void *pvParameters) {
 
 
 
-void validateSensorReadings(float& humidity, float& temperature, float& turbidity, float& salinity, float& tds) {
+bool validateSensorReadings(float& humidity, float& temperature, float& turbidity, float& salinity, float& tds, float& ph, float& oxygenLevel) {
     // Improved validation logic
     bool isValid = true;
     if (isnan(humidity) || humidity < 0 || humidity > 100) {  
@@ -225,8 +246,17 @@ void validateSensorReadings(float& humidity, float& temperature, float& turbidit
         isValid = false;
         tds = 0.0;  // Default value
     }
-    if (!isValid)
-        Serial.println("One or MORE of the sensors' data is corrupted");
+     if (isnan(ph) || ph < 0) {  
+        // Serial.println("Invalid or No TDS sensor detected. Setting default value.");
+        isValid = false;
+        ph = 0.0;  // Default value
+    }
+    if (isnan(oxygenLevel) || oxygenLevel < 0) {  
+        // Serial.println("Invalid or No TDS sensor detected. Setting default value.");
+        isValid = false;
+        oxygenLevel = 0.0;  // Default value
+    }
+    return isValid;
 }
 
 
