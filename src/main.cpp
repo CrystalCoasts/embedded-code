@@ -40,6 +40,7 @@ void setLEDSolid(bool on) ;
 void setup() {
     // General setup
     Serial.begin(115200);
+    Wire.begin();
 
     // Initialize SPIFFS
     if (!SPIFFS.begin(true)) {
