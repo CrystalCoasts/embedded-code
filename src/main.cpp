@@ -11,9 +11,10 @@
 //our classes
 #include "TempSensor.h"
 #include "TurbiditySensor.h"
+#include "SalinitySensor.h"
 // #include "config.h"
 
-const char* SSID = "Diane";
+const char* SSID = "seawall";
 const char* PASSWD = "12345678";
 const char* WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzdREDYLRb1ew8CjwGY_WnrIU0UWW0Sn3Wr4XdT8Jv0VjXuQxJV7GVCKZeYtEb2zrKb/exec";
 
@@ -55,6 +56,8 @@ void setup() {
     // Initialize sensors
     temp.begin();
     tbdty.begin();
+    sal.begin();
+    sal.EnableDisableSingleReading(SAL,1);
 
     // Initialize WiFi
     WiFi.begin(SSID, PASSWD);
@@ -77,7 +80,9 @@ void SensorTask(void *pvParameters) {
         float humidity = round(temp.readHumidity()*100)/100;
         float waterTemp = round(temp.readTemperature(CELSIUS)*100)/100;
         float turbidity = round(tbdty.readTurbidity()*100)/100;
-
+        float salinity = 232.0;
+    
+        sal.readSalinity(&salinity);
         // float humidity = 96.5;
         // float waterTemp = 76.0;
         // float turbidity = 3000;
@@ -85,11 +90,10 @@ void SensorTask(void *pvParameters) {
 
 
         // default values until we get the sensors
-        float salinity = 232.0;
+        
         float tds = 111.0;
         float pH = 7.0;
         float oxygenLevel = 36.0;
-
         bool validReading =validateSensorReadings(humidity, waterTemp, turbidity, salinity, tds, pH, oxygenLevel);
 
         String jsonPayload = prepareJsonPayload(pH, oxygenLevel, salinity, turbidity, tds, waterTemp);
