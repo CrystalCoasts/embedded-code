@@ -7,7 +7,7 @@
 
 
 
-enum TEMP {CELSIUS,FARENHEIT};
+enum TEMP {CELSIUS,FAHRENHEIT};
 
 
 class TempSensor
@@ -20,8 +20,8 @@ public:
 
     static TempSensor& Get();
     void begin();
-    float readTemperature(TEMP tempScale);
-    float readHumidity();
+    bool readTemperature(TEMP tempScale, float* temperature);
+    bool readHumidity(float* humidity);
 
 private:
     TempSensor();

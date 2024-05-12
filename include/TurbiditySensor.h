@@ -18,7 +18,7 @@ public:
     static TurbiditySensor& Get();
     void begin();
     float calibrate();
-    float readTurbidity();
+    bool readTurbidity(float* turbidity);
 
 private:
 
