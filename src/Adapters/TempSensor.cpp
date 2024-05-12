@@ -22,25 +22,49 @@ void TempSensor::begin(){
     sensors.begin();
 }
 
-float TempSensor::readHumidity(){
-    return dht.readHumidity();
+bool TempSensor::readHumidity(float* humidity) {
+    if (humidity == nullptr) {
+        return false; // Invalid pointer
+    }
+
+    // Read humidity
+    float h = dht.readHumidity();
+
+    // Check if the reading was successful
+    if (isnan(h)) {
+        return false; // Failed to read humidity
+    }
+
+    // Assign the humidity value to the provided pointer
+    *humidity = h;
+    return true; // Successful read
 }
 
-float TempSensor::readTemperature(TEMP tempScale){
+bool TempSensor::readTemperature(TEMP tempScale, float* temperature) {
+    if (temperature == nullptr) {
+        return false; // Invalid pointer
+    }
 
-    sensors.requestTemperatures();
-    switch (tempScale)
-    {
-    case CELSIUS:
-        return sensors.getTempCByIndex(TEMP_INDEX);
-        break;
+    sensors.requestTemperatures(); // Request temperature readings
 
-    case FARENHEIT:
-        return sensors.getTempFByIndex(TEMP_INDEX);
-        break;    
-    default:
-        return 0.0; //maybe have a better 'default'
-        break;
-    }    
+    switch (tempScale) {
+        case CELSIUS:
+            *temperature = sensors.getTempCByIndex(0); // Read temperature in Celsius
+            if (*temperature == DEVICE_DISCONNECTED_C) {
+                return false; // Failed to read temperature
+            }
+            break;
 
+        case FAHRENHEIT:
+            *temperature = sensors.getTempFByIndex(0); // Read temperature in Fahrenheit
+            if (*temperature == DEVICE_DISCONNECTED_F) {
+                return false; // Failed to read temperature
+            }
+            break;
+
+        default:
+            return false; // Unsupported temperature scale
+    }
+
+    return true; // Successful read
 }

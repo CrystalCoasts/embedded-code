@@ -44,9 +44,24 @@ float TurbiditySensor::calibrate() {
  *  ESP cannot handle 5V so voltage divider was neede to take it down to 3.3V
  */
 
-float TurbiditySensor::readTurbidity() {
+bool TurbiditySensor::readTurbidity(float* turbidity) {
+    if (turbidity == nullptr) {
+        return false; // Invalid pointer
+    }
+    
     int sensorValue = analogRead(T_ANALOG_PIN);
-    float voltage = sensorValue * (VREF / ADC_DIGITAL);  // 3.3 V instead of 5
-    float turbidityPercentage = (vClear - voltage) / vClear * MAX_NTU;  
-    return turbidityPercentage; 
+    float voltage = sensorValue * (VREF / ADC_DIGITAL); // Convert ADC value to voltage
+
+    // Example validation, ensure voltage is within expected range
+    if (voltage < 0.0 || voltage > VREF) {
+        return false; // Voltage out of range
+    }
+
+    // Calculate turbidity percentage
+    float turbidityPercentage = (vClear - voltage) / vClear * MAX_NTU;
+    
+    // Assign the calculated value to the pointer
+    *turbidity = turbidityPercentage;
+    
+    return true; // Indicate successful reading
 }

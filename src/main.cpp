@@ -8,12 +8,16 @@
 #include "esp_sleep.h"
 #include <ArduinoJson.h>
 
+#include <iostream>
+#include <cmath>
+
 //our classes
 #include "TempSensor.h"
 #include "TurbiditySensor.h"
+#include "SalinitySensor.h"
 // #include "config.h"
 
-const char* SSID = "Diane";
+const char* SSID = "seawall";
 const char* PASSWD = "12345678";
 const char* WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzdREDYLRb1ew8CjwGY_WnrIU0UWW0Sn3Wr4XdT8Jv0VjXuQxJV7GVCKZeYtEb2zrKb/exec";
 
@@ -39,6 +43,7 @@ void setLEDSolid(bool on) ;
 void setup() {
     // General setup
     Serial.begin(115200);
+    Wire.begin();
 
     // Initialize SPIFFS
     if (!SPIFFS.begin(true)) {
@@ -55,6 +60,8 @@ void setup() {
     // Initialize sensors
     temp.begin();
     tbdty.begin();
+    sal.begin();
+    sal.EnableDisableSingleReading(SAL,1);
 
     // Initialize WiFi
     WiFi.begin(SSID, PASSWD);
@@ -74,23 +81,39 @@ void setup() {
 void SensorTask(void *pvParameters) {
     while (1) {
         // value = round(value*1000)/1000 -> round to 2 decimal places
-        float humidity = round(temp.readHumidity()*100)/100;
-        float waterTemp = round(temp.readTemperature(CELSIUS)*100)/100;
-        float turbidity = round(tbdty.readTurbidity()*100)/100;
+        float humidity,salinity, turbidity, waterTemp;
 
+        temp.readHumidity(&humidity);
+        temp.readTemperature(FAHRENHEIT,&waterTemp);
+        tbdty.readTurbidity(&turbidity);
+        sal.readSalinity(&salinity);
         // float humidity = 96.5;
         // float waterTemp = 76.0;
         // float turbidity = 3000;
         
+        //round reads:
+        humidity = round(humidity * 1000.0) / 1000.0;
+        waterTemp = round(waterTemp * 1000.0) / 1000.0;
+        turbidity = round(turbidity * 1000.0) / 1000.0;
+        salinity = round(salinity * 1000.0) / 1000.0;
 
-
+        
+        String salinityStri = String(salinity);
+        Serial.println(salinity);
         // default values until we get the sensors
-        float salinity = 232.0;
+        
         float tds = 111.0;
         float pH = 7.0;
         float oxygenLevel = 36.0;
-
+        // String values = String(humidity, 3) + "," + 
+        //                 String(waterTemp, 3) + "," + 
+        //                 String(turbidity, 3) + "," + 
+        //                 String(salinity, 3) + "," +
+        //                 String(tds, 3) + "," + 
+        //                 String(pH, 3) + "," + 
+        //                 String(oxygenLevel, 3) ;
         bool validReading =validateSensorReadings(humidity, waterTemp, turbidity, salinity, tds, pH, oxygenLevel);
+        // Serial.println(values);
 
         String jsonPayload = prepareJsonPayload(pH, oxygenLevel, salinity, turbidity, tds, waterTemp);
         
@@ -125,12 +148,12 @@ void SensorTask(void *pvParameters) {
 
 String prepareJsonPayload(float pH, float oxygenLevel, float salinity, float turbidity, float tds, float temperature) {
     StaticJsonDocument<256> doc;
-    doc["pH"] = isnan(pH) ? JsonVariant() : pH;
-    doc["oxygenLevel"] = isnan(oxygenLevel) ? JsonVariant() : oxygenLevel;
-    doc["salinity"] = isnan(salinity) ? JsonVariant() : salinity;
-    doc["turbidity"] = isnan(turbidity) ? JsonVariant() : turbidity;
-    doc["TDS"] = isnan(tds) ? JsonVariant() : tds;
-    doc["temperature"] = isnan(temperature) ? JsonVariant() : temperature;
+    doc["pH"] = isnan(pH) ? JsonVariant() : String(pH,3);
+    doc["oxygenLevel"] = isnan(oxygenLevel) ? JsonVariant() : String(oxygenLevel,3);
+    doc["salinity"] = isnan(salinity) ? JsonVariant() : String(salinity,3);
+    doc["turbidity"] = isnan(turbidity) ? JsonVariant() : String(turbidity,3);
+    doc["TDS"] = isnan(tds) ? JsonVariant() : String(tds,3);
+    doc["temperature"] = isnan(temperature) ? JsonVariant() : String(temperature,3);
 
     String jsonPayload;
     serializeJson(doc, jsonPayload);
