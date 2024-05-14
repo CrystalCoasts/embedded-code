@@ -1,16 +1,13 @@
-// TurbiditySensor.cpp
 #include "TurbiditySensor.h"
-#include <EEPROM.h>
 #include <Arduino.h>
 
-
 TurbiditySensor& tbdty = TurbiditySensor::Get();
+
 TurbiditySensor::TurbiditySensor() {}
 
 void TurbiditySensor::begin() {
-    // pinMode(BUTTON_CALIB, INPUT_PULLUP);
-    EEPROM.get(EEPROM_VCLEAR_ADDRESS, vClear); // Use a specific EEPROM address for vClear
-    analogReadResolution(12); //this is the default... but just in case
+    EEPROM.get(EEPROM_VCLEAR_ADDRESS, vClear); // Retrieve the vClear from EEPROM
+    analogReadResolution(12); // Set ADC resolution to 12-bit
 }
 
 TurbiditySensor& TurbiditySensor::Get() {
@@ -18,50 +15,52 @@ TurbiditySensor& TurbiditySensor::Get() {
     return instance;
 }
 
-
-/**
- * Allows to update the voltage reference for 'clear' water. 
- */
 float TurbiditySensor::calibrate() {
     cumulativeRead = 0;
     for (int i = 0; i < READ_SAMPLES; ++i) {
         cumulativeRead += analogRead(T_ANALOG_PIN);
-        delay(100); // Consider adjusting or removing delay based on needs
+        delay(100); // Delay for stability
     }
-    vClear = static_cast<float>(cumulativeRead) / READ_SAMPLES * (VREF/ ADC_DIGITAL); // Adjusting for 3.3V and 12-bit resolution
+    float sensorVoltage = static_cast<float>(cumulativeRead) / READ_SAMPLES * (VREF / ADC_DIGITAL);
+    vClear = sensorVoltage * DIVIDER_RATIO; // Adjust for voltage divider
     EEPROM.put(EEPROM_VCLEAR_ADDRESS, vClear);
     Serial.print("Calibration complete. vClear set to: ");
     Serial.println(vClear);
     return vClear;
 }
 
-
-/**
- * @brief returns the turbidity reading in NTU (Nephelometric Turbidity Units)
- * 
- * Notes: 
- *  Sensor used for this had a 12 bit ADC and a max of 4050 NTU. It uses 5V
- *  ESP cannot handle 5V so voltage divider was neede to take it down to 3.3V
- */
-
 bool TurbiditySensor::readTurbidity(float* turbidity) {
     if (turbidity == nullptr) {
         return false; // Invalid pointer
     }
-    
-    int sensorValue = analogRead(T_ANALOG_PIN);
-    float voltage = sensorValue * (VREF / ADC_DIGITAL); // Convert ADC value to voltage
 
-    // Example validation, ensure voltage is within expected range
-    if (voltage < 0.0 || voltage > VREF) {
+    int sensorValue = analogRead(T_ANALOG_PIN);
+    float Vout = sensorValue * (VREF / ADC_DIGITAL); // Convert ADC value to voltage
+    float Vin = Vout * DIVIDER_RATIO; // Adjust for voltage divider
+
+    
+    if (Vin < 0.0 || Vin > 5.0) {
         return false; // Voltage out of range
     }
 
-    // Calculate turbidity percentage
-    float turbidityPercentage = (vClear - voltage) / vClear * MAX_NTU;
-    
+    // Calculate the percentage of turbidity
+    float turbidityPercentage = (vClear - Vin) / vClear * 100.0;
+
+    // Conversion factor: 3.5% corresponds to 4550 NTU (from keystudio website)
+    const float conversionFactor = MAX_NTU / 3.5;
+
+    // Calculate turbidity in NTU
+    float turbidityNTU = turbidityPercentage * conversionFactor;
+
+    // Ensure NTU is within 0 to MAX_NTU range
+    if (turbidityNTU < 0.0) {
+        turbidityNTU = 0.0;
+    } else if (turbidityNTU > MAX_NTU) {
+        turbidityNTU = MAX_NTU;
+    }
+
     // Assign the calculated value to the pointer
-    *turbidity = turbidityPercentage;
-    
+    *turbidity = turbidityNTU;
+
     return true; // Indicate successful reading
 }
