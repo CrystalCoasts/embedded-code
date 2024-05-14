@@ -65,7 +65,7 @@ void setup() {
     // Initialize sensors
     temp.begin();
     tbdty.begin();
-    tbdty.calibrate();
+    // tbdty.calibrate();
     sal.begin();
     sal.EnableDisableSingleReading(SAL, 1);
 
