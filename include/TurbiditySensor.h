@@ -4,16 +4,11 @@
 #include <EEPROM.h>
 #include "config.h"
 
-
-
 class TurbiditySensor {
 public:
-
-    // constexpr short BUTTON_CALIB = 2;
     static constexpr short READ_SAMPLES = 25;
-    static constexpr short T_ANALOG_PIN = 32; // we need one of the adc1 pins, adc2 pins cannot be used while wifi is in use
+    static constexpr short T_ANALOG_PIN = 32; // ADC1 pin
     static constexpr uint8_t EEPROM_VCLEAR_ADDRESS = 0;
-    
 
     static TurbiditySensor& Get();
     void begin();
@@ -21,16 +16,17 @@ public:
     bool readTurbidity(float* turbidity);
 
 private:
-
     static constexpr float VREF = 3.3;
-    static constexpr short MAX_NTU = 4050;
+    static constexpr short MAX_NTU = 4550;
     static constexpr short ADC_DIGITAL = 4095;
+    //vout = vin*(R2/(R1+R2)) -> vin20/(10+20) -> vin = vou*(3/2)
+    static constexpr float DIVIDER_RATIO = 3.0 / 2.0; 
+
     unsigned int cumulativeRead = 0;
     float vClear = 2.82; // Default calibration value
 
     TurbiditySensor();  // Private constructor
-    // Deleted copy constructor and assignment operator to prevent copying
-    TurbiditySensor(const TurbiditySensor&) = delete;
+    TurbiditySensor(const TurbiditySensor&) = delete; // Prevent copying
     TurbiditySensor& operator=(const TurbiditySensor&) = delete;
 };
 

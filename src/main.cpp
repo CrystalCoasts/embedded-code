@@ -65,7 +65,7 @@ void setup() {
     // Initialize sensors
     temp.begin();
     tbdty.begin();
-    // tbdty.calibrate();
+    tbdty.calibrate();
     sal.begin();
     sal.EnableDisableSingleReading(SAL, 1);
 
@@ -132,13 +132,13 @@ void printDataOnCLI(const SensorData& data){
     
     // Header
     toPrint += "+-----------------------+-----------------------+\n";
-    toPrint += "|\tSensor\t\t|\tReading\t\t|\n";
+    toPrint += "|Sensor Readings:\n";
     toPrint += "+-----------------------+-----------------------+\n";
-    toPrint += "|\tTemperature\t|\t"+String(data.temperature,3)+"\t\t|\n";
+    toPrint += "|Temperature: "+String(data.temperature,3)+"\n";
     toPrint += "+-----------------------+-----------------------+\n";
-    toPrint += "|\tSalinity\t|\t"+String(data.salinity,3)+"\t\t|\n";
+    toPrint += "|Salinity:"+String(data.salinity,3)+"\n";
     toPrint += "+-----------------------+-----------------------+\n";
-    toPrint+= "|\tTurbidity\t|\t"+String(data.turbidity,3)+"\t|\n";
+    toPrint+= "|Turbidity: "+String(data.turbidity,3)+"\n";
     toPrint += "+-----------------------+-----------------------+\n";
 
     Serial.println(toPrint);
