@@ -26,7 +26,7 @@ private:
     static constexpr short MAX_NTU = 4050;
     static constexpr short ADC_DIGITAL = 4095;
     unsigned int cumulativeRead = 0;
-    float vClear = 15; // Default calibration value
+    float vClear = 2.82; // Default calibration value
 
     TurbiditySensor();  // Private constructor
     // Deleted copy constructor and assignment operator to prevent copying
