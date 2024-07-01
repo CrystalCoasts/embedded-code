@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <WebServer.h>
 #include "FS.h"
 #include "SPIFFS.h"
 #include <ArduinoJson.h>
@@ -9,19 +10,16 @@
 #include "TempSensor.h"
 #include "TurbiditySensor.h"
 #include "SalinitySensor.h"
-#include <ph_surveyor.h>
-#include <base_surveyor.h>
-#include "DOSensor.h"
-
 
 const char* SSID = "seawall";
 const char* PASSWD = "12345678";
 const char* WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzdREDYLRb1ew8CjwGY_WnrIU0UWW0Sn3Wr4XdT8Jv0VjXuQxJV7GVCKZeYtEb2zrKb/exec";
-const char *serverName = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.com/";
-//const char *serverName = "MONGODB_URI=mongodb+srv://lisettehawkins09:cxO0hBBXellzkuAX@cluster0-sensordatassam.sk9l59s.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0-sensorDatasSample";
 
 const int STATUS_LED_PIN = 2; // Commonly the onboard LED pin on ESP32
 const int BUTTON_PIN = 0;
+
+// WebServer instance on port 80
+WebServer server(80);
 
 // Struct for sensor data
 struct SensorData {
@@ -39,9 +37,7 @@ struct SensorData {
     bool pHValid;
     float oxygenLevel;
     bool oxygenLevelValid;
-};   
-
-Surveyor_pH pH = Surveyor_pH(35);
+};
 
 // Forward declarations
 void saveDataToJSONFile(String data);
@@ -50,16 +46,26 @@ String prepareJsonPayload(const SensorData& data);
 String readDataFromJSONFile();
 void validateSensorReadings(SensorData& data);
 void printDataOnCLI(const SensorData& data);
-void sdBegin();
 
 // Status functions
 void blinkLED(int delayTime);
 void setLEDSolid(bool on);
 
+// Web server handler functions
+void handleLEDon() {
+    digitalWrite(STATUS_LED_PIN, HIGH);
+    server.send(200, "text/plain", "LED is ON");
+}
+
+void handleLEDoff() {
+    digitalWrite(STATUS_LED_PIN, LOW);
+    server.send(200, "text/plain", "LED is OFF");
+}
 
 void setup() {
     Serial.begin(115200);
     Wire.begin();
+
     // Initialize SPIFFS
     if (!SPIFFS.begin(true)) {
         Serial.println("An Error has occurred while mounting SPIFFS");
@@ -77,24 +83,30 @@ void setup() {
     // tbdty.calibrate();
     sal.begin();
     sal.EnableDisableSingleReading(SAL, 1);
-    sal.EnableDisableSingleReading(TDS,1);
-    DO.begin();
 
     // Initialize WiFi
-    WiFi.begin(SSID, PASSWD);    
+    WiFi.begin(SSID, PASSWD);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.println("Connecting to WiFi...");
+    }
+    Serial.print("Connected to WiFi network with IP Address: ");
+    Serial.println(WiFi.localIP());
 
+    // Start the web server
+    server.on("/led/on", handleLEDon);
+    server.on("/led/off", handleLEDoff);
+    server.begin();
 }
 
 void loop() {
     // Sensor data
     SensorData data = {0};
-    data.humidityValid = temp.readHumidity(&data.humidity);
-    data.temperatureValid  = temp.readTemperature(CELSIUS, &data.temperature);
+    temp.readHumidity(&data.humidity);
+    temp.readTemperature(FAHRENHEIT, &data.temperature);
     // Serial.print(data.temperature);
-    data.turbidityValid = tbdty.readTurbidity(&data.turbidity);
-    data.salinityValid = sal.readSalinity(&data.salinity);
-    data.pH = pH.read_ph();
-    data.oxygenLevelValid = DO.readDO(&data.oxygenLevel, data.salinity, data.temperature);
+    tbdty.readTurbidity(&data.turbidity);
+    sal.readSalinity(&data.salinity);
 
     // Round readings
     data.humidity = round(data.humidity * 1000.0) / 1000.0;
@@ -102,18 +114,16 @@ void loop() {
     data.turbidity = round(data.turbidity * 1000.0) / 1000.0;
     data.salinity = round(data.salinity * 1000.0) / 1000.0;
 
-    data.pH = round(data.pH * 1000.0)/1000.0;
-
     // Default values for other sensors
     data.tds = 111.0;
-    //data.tdsValid = true;
-    //data.pH = 7.0;
+    data.tdsValid = true;
+    data.pH = 7.0;
     data.pHValid = true;
-    //data.oxygenLevel = 36.0;
-    //data.oxygenLevelValid = true;
+    data.oxygenLevel = 36.0;
+    data.oxygenLevelValid = true;
 
     // Validate readings
-    //validateSensorReadings(data);
+    validateSensorReadings(data);
 
     String jsonPayload = prepareJsonPayload(data);
     printDataOnCLI(data);
@@ -124,8 +134,6 @@ void loop() {
         saveDataToJSONFile(jsonPayload);
     }
 
-    //saveSensorRecord("12345678");
-
     // Handle button press for turbidity sensor calibration
     if (digitalRead(BUTTON_PIN) == LOW) {
         tbdty.calibrate();
@@ -135,12 +143,8 @@ void loop() {
         }
     }
 
-    // Update LED status based on WiFi connection
-    if (WiFi.status() == WL_CONNECTED) {
-        setLEDSolid(true);
-    } else {
-        blinkLED(500);
-    }
+    // Handle client requests
+    server.handleClient();
 
     delay(5000); // 5 seconds delay for next sensor read
 }
@@ -156,24 +160,21 @@ void printDataOnCLI(const SensorData& data){
     toPrint += "+-----------------------+-----------------------+\n";
     toPrint += "|Salinity:"+String(data.salinity,3)+"\n";
     toPrint += "+-----------------------+-----------------------+\n";
-    toPrint += "|Turbidity: "+String(data.turbidity,3)+"\n";
+    toPrint+= "|Turbidity: "+String(data.turbidity,3)+"\n";
     toPrint += "+-----------------------+-----------------------+\n";
-    toPrint += "pH Value: "+String(data.pH,3) + "\n";
-    toPrint += "Humidity Value: "+String(data.humidity,3) + "\n";
-    toPrint += "Oxygen Value: "+String(data.oxygenLevel,3) + "\n";
 
     Serial.println(toPrint);
 }
 
 String prepareJsonPayload(const SensorData& data) {
     StaticJsonDocument<256> doc;
-    doc["humidity"] = String(data.humidity, 3);
-    doc["temperature"] = String(data.temperature, 3);
-    doc["turbidity"] = String(data.turbidity, 3);
-    doc["salinity"] = String(data.salinity, 3);
-    doc["TDS"] = String(data.tds, 3);
-    doc["pH"] = String(data.pH, 3);
-    doc["oxygenLevel"] = String(data.oxygenLevel, 3);
+    if (data.humidityValid) doc["humidity"] = String(data.humidity, 3);
+    if (data.temperatureValid) doc["temperature"] = String(data.temperature, 3);
+    if (data.turbidityValid) doc["turbidity"] = String(data.turbidity, 3);
+    if (data.salinityValid) doc["salinity"] = String(data.salinity, 3);
+    if (data.tdsValid) doc["TDS"] = String(data.tds, 3);
+    if (data.pHValid) doc["pH"] = String(data.pH, 3);
+    if (data.oxygenLevelValid) doc["oxygenLevel"] = String(data.oxygenLevel, 3);
 
     String jsonPayload;
     serializeJson(doc, jsonPayload);
@@ -217,8 +218,8 @@ void uploadData(String jsonData) {
         // Serial.print(jsonData);
         HTTPClient http;
         http.begin(WEB_APP_URL);
-        int httpResponseCode = http.POST(jsonData);
         http.addHeader("Content-Type", "application/json");
+        int httpResponseCode = http.POST(jsonData);
         http.end();
     } else {
         Serial.println("WiFi is not connected. Skipping data upload.");
@@ -245,4 +246,3 @@ void blinkLED(int delayTime) {
 void setLEDSolid(bool on) {
     digitalWrite(STATUS_LED_PIN, on ? HIGH : LOW);
 }
-
