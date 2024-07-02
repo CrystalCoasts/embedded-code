@@ -1,9 +1,13 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include "FS.h"
 #include "SPIFFS.h"
 #include <ArduinoJson.h>
+#include "SPI.h"
+#include "FS.h"
+#include "SdFat.h"
+
+SdFat32 SD;
 
 // Sensor headers
 #include "TempSensor.h"
@@ -12,7 +16,6 @@
 #include <ph_surveyor.h>
 #include <base_surveyor.h>
 #include "DOSensor.h"
-
 
 const char* SSID = "seawall";
 const char* PASSWD = "12345678";
@@ -55,7 +58,7 @@ void sdBegin();
 // Status functions
 void blinkLED(int delayTime);
 void setLEDSolid(bool on);
-
+bool cardMount = false;
 
 void setup() {
     Serial.begin(115200);
@@ -80,12 +83,31 @@ void setup() {
     sal.EnableDisableSingleReading(TDS,1);
     DO.begin();
 
+    // SPI.begin(18, 19, 23, 5);
+    // SPI.setDataMode(SPI_MODE0);
+    // if(!SD.begin(SdSpiConfig(5, SHARED_SPI, SD_SCK_MHZ(16)))){
+    //     Serial.println("Card Mount Failed");
+        
+    // }else   {
+    //     Serial.println("Card mount sucessful!");
+    //     cardMount = true;
+    // }
+
     // Initialize WiFi
     WiFi.begin(SSID, PASSWD);    
 
 }
 
 void loop() {
+    // if(cardMount != true)   {
+    //     if(!SD.begin(SdSpiConfig(5, SHARED_SPI, SD_SCK_MHZ(16)))){
+    //         Serial.println("Card Mount Failed");
+    //     }else   {
+    //         Serial.println("Card mount sucessful!");
+    //         cardMount = true;
+    //     }   
+
+    // }
     // Sensor data
     SensorData data = {0};
     data.humidityValid = temp.readHumidity(&data.humidity);
@@ -181,34 +203,29 @@ String prepareJsonPayload(const SensorData& data) {
 }
 
 void saveDataToJSONFile(String data) {
-    Serial.println("Saving data to JSON file...");
-
+    // Serial.println("Saving data to JSON file...");
     // Serial.println(data);
-    File file = SPIFFS.open("/data.json", FILE_APPEND);
-    if (!file) {
-        Serial.println("Failed to open file for writing");
-        return;
-    }
-    if (file.println(data)) {
-        Serial.println("Data saved successfully.");
-    } else {
-        Serial.println("Failed to save data.");
-    }
-    file.close();
+    // File32 file = SD.open("/test.txt", O_WRITE | O_CREAT | O_APPEND);
+    // if (file.println(data)) {
+    //     Serial.println("Data saved successfully.");
+    // } else {
+    //     Serial.println("Failed to save data.");
+    // }
+    // file.close();
 }
 
 String readDataFromJSONFile() {
-    File file = SPIFFS.open("/data.json");
-    if (!file) {
-        Serial.println("There was an error opening the file for reading");
-        return "";
-    }
-    String data;
-    while (file.available()) {
-        data += file.readStringUntil('\n') + "\n";
-    }
-    file.close();
-    return data;
+    // File file = SPIFFS.open("/data.json");
+    // if (!file) {
+    //     Serial.println("There was an error opening the file for reading");
+    //     return "";
+    // }
+    // String data;
+    // while (file.available()) {
+    //     data += file.readStringUntil('\n') + "\n";
+    // }
+    // file.close();
+    // return data;
 }
 
 void uploadData(String jsonData) {
