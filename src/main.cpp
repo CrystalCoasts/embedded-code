@@ -6,8 +6,9 @@
 #include "SPI.h"
 #include "FS.h"
 #include "SdFat.h"
-
-SdFat32 SD;
+#include "NTPClient.h"
+#include "WiFiUdp.h"
+#include "esp_sntp.h"
 
 // Sensor headers
 #include "TempSensor.h"
@@ -16,6 +17,15 @@ SdFat32 SD;
 #include <ph_surveyor.h>
 #include <base_surveyor.h>
 #include "DOSensor.h"
+
+// WiFiUDP ntpUDP;
+// NTPClient timeClient(ntpUDP);
+SdFat32 SD;
+//WiFiClient timeClient;
+
+// String formattedDate;
+// String dayStamp;
+// String timeStamp;
 
 const char* SSID = "seawall";
 const char* PASSWD = "12345678";
@@ -46,10 +56,21 @@ struct SensorData {
 
 Surveyor_pH pH = Surveyor_pH(35);
 
+// NTP clock updating stuff maybe???? idk if it actually works im just trying stuff at this point AJAJJAJAJAJAJ
+const char* ntpServer1 = "pool.ntp.org";
+const char* ntpServer2 = "time.nist.gov";
+const long gmtOffset_sec = -(3600 * 5);
+const int daylightOffset_sec = 3600;
+const char* time_zone = "CET-1CEST,M3.5.0,M10.5.0/3";
+struct tm timeinfo;
+const int yearOffset = 1900;
+
 // Forward declarations
 void saveDataToJSONFile(String data);
 void uploadData(String data);
 String prepareJsonPayload(const SensorData& data);
+String prepareCSVPayload(const SensorData& data);
+void saveCSVData(String data);
 String readDataFromJSONFile();
 void validateSensorReadings(SensorData& data);
 void printDataOnCLI(const SensorData& data);
@@ -60,7 +81,25 @@ void blinkLED(int delayTime);
 void setLEDSolid(bool on);
 bool cardMount = false;
 
+void printLocalTime()   {
+    if(!getLocalTime(&timeinfo))    {
+        Serial.println("No time available (yet)");
+        return;
+    }
+    Serial.println(&timeinfo, "%A, %B %d, %Y %H:%M:%S");
+}
+
+// Callback function (get's called when time adjusts via NTP)
+void timeavailable(struct timeval *t)
+{
+  Serial.println("Got time adjustment from NTP!");
+  printLocalTime();
+}
+
+
 void setup() {
+
+    setCpuFrequencyMhz(80);
     Serial.begin(115200);
     Wire.begin();
     // Initialize SPIFFS
@@ -94,11 +133,17 @@ void setup() {
     } 
 
     // Initialize WiFi
-    WiFi.begin(SSID, PASSWD);    
+    WiFi.begin(SSID, PASSWD);
+    // timeClient.begin();
+    // timeClient.setTimeOffset(-(3600 * 4));
+
+    sntp_set_time_sync_notification_cb(timeavailable);
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer1, ntpServer2);
 
 }
 
 void loop() {
+    printLocalTime();
     if(cardMount != true)   {
         if(!SD.begin(SdSpiConfig(5, SHARED_SPI, SD_SCK_MHZ(16)))){
             Serial.println("Card Mount Failed");
@@ -108,22 +153,23 @@ void loop() {
         }   
 
     }
+   
     // Sensor data
-    SensorData data = {0};
-    data.humidityValid = temp.readHumidity(&data.humidity);
+    SensorData data = {0};   
     data.temperatureValid  = temp.readTemperature(CELSIUS, &data.temperature);
-    // Serial.print(data.temperature);
     data.turbidityValid = tbdty.readTurbidity(&data.turbidity);
     data.salinityValid = sal.readSalinity(&data.salinity);
     data.pH = pH.read_ph();
     data.oxygenLevelValid = DO.readDO(&data.oxygenLevel, data.salinity, data.temperature);
+    setCpuFrequencyMhz(80);
+    data.humidityValid = temp.readHumidity(&data.humidity);
+    setCpuFrequencyMhz(240);
 
     // Round readings
     data.humidity = round(data.humidity * 1000.0) / 1000.0;
     data.temperature = round(data.temperature * 1000.0) / 1000.0;
     data.turbidity = round(data.turbidity * 1000.0) / 1000.0;
     data.salinity = round(data.salinity * 1000.0) / 1000.0;
-
     data.pH = round(data.pH * 1000.0)/1000.0;
 
     // Default values for other sensors
@@ -137,14 +183,26 @@ void loop() {
     // Validate readings
     //validateSensorReadings(data);
 
+/*
+    if(WiFi.status() == WL_CONNECTED)   {
+        timeClient.update();
+        formattedDate = timeClient.getFormattedTime();
+    }
+    int splitT = formattedDate.indexOf("T");;
+    dayStamp = formattedDate.substring(0, splitT);
+    timeStamp = formattedDate.substring(splitT+1, formattedDate.length() -1);
+    Serial.println("DATE: " + dayStamp + ", HOUR: " + timeStamp);
+*/
+
     String jsonPayload = prepareJsonPayload(data);
+    String csvPayLoad = prepareCSVPayload(data);
     printDataOnCLI(data);
 
-    if (WiFi.status() == WL_CONNECTED) {
-        uploadData(jsonPayload);
-    } else {
-        saveDataToJSONFile(jsonPayload);
-    }
+    // if (WiFi.status() == WL_CONNECTED) {
+    //     uploadData(jsonPayload);
+    // }
+    saveDataToJSONFile(jsonPayload);
+    saveCSVData(csvPayLoad);
 
     //saveSensorRecord("12345678");
 
@@ -202,16 +260,44 @@ String prepareJsonPayload(const SensorData& data) {
     return jsonPayload;
 }
 
+String prepareCSVPayload(const SensorData& data)    {
+    return String(data.humidity, 3) + ", " + String(data.temperature, 3) +
+        ", " + String(data.turbidity, 3) + ", " + String(data.salinity, 3) + 
+        ", " + String(data.tds, 3) + ", " + String(data.pH, 3) + ", " +
+        String(data.oxygenLevel, 3) + ", " + (timeinfo.tm_mon+1) + ", " +
+        timeinfo.tm_mday + ", " + (timeinfo.tm_year + yearOffset) + ", " + timeinfo.tm_hour +
+        ":" + timeinfo.tm_min + ":" + timeinfo.tm_sec;   
+}
+
+void saveCSVData(String data)   {
+    Serial.println("Saving data to CSV file...");
+    File32 file;
+    String filename = String("/csvFiles/") + (timeinfo.tm_mon+1) + '-' + timeinfo.tm_mday + '-' + (timeinfo.tm_year + yearOffset) + String("-data.csv"); 
+    if(!SD.open(filename, O_WRITE | O_APPEND))    {       //if cant open file to append/doesn't exist, create said file and write the headers
+        file = SD.open(filename, O_WRITE | O_CREAT);
+        String header = "Humidity, Temperature, Turbidity, Salinity, TDS, pH, Disolved Oxygen, Month, Day, Year, Hour";
+        file.println(header);
+    }else{
+        file = SD.open(filename, O_WRITE | O_APPEND);
+    }
+    if (file.println(data)) {
+        Serial.println("Data saved successfully.");
+    } else {
+        Serial.println("Failed to save data.");
+    }
+    file.close();
+}
+
 void saveDataToJSONFile(String data) {
-    // Serial.println("Saving data to JSON file...");
-    // Serial.println(data);
-    // File32 file = SD.open("/test.txt", O_WRITE | O_CREAT | O_APPEND);
-    // if (file.println(data)) {
-    //     Serial.println("Data saved successfully.");
-    // } else {
-    //     Serial.println("Failed to save data.");
-    // }
-    // file.close();
+    Serial.println("Saving data to JSON file...");
+    Serial.println(data);
+    File32 file = SD.open("/jsonFiles/test.json", O_WRITE | O_CREAT | O_APPEND);
+    if (file.println(data)) {
+        Serial.println("Data saved successfully.");
+    } else {
+        Serial.println("Failed to save data.");
+    }
+    file.close();
 }
 
 String readDataFromJSONFile() {
