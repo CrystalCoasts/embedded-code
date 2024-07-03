@@ -81,8 +81,7 @@ bool SalinitySensor::readSalinity(float* salinity) {
     ec.receive_cmd(ec_data, sizeof(ec_data));
     char salStr[32];
     if (!salFlag) {
-        EnableDisableSingleReading(SAL, 1);
-
+        EnableDisableSingleReading(TDS, 1);
     }
 
     ec.send_cmd("R");

@@ -80,18 +80,18 @@ void setup() {
     // tbdty.calibrate();
     sal.begin();
     sal.EnableDisableSingleReading(SAL, 1);
-    sal.EnableDisableSingleReading(TDS,1);
+    //sal.EnableDisableSingleReading(TDS,1);
     DO.begin();
 
-    // SPI.begin(18, 19, 23, 5);
-    // SPI.setDataMode(SPI_MODE0);
-    // if(!SD.begin(SdSpiConfig(5, SHARED_SPI, SD_SCK_MHZ(16)))){
-    //     Serial.println("Card Mount Failed");
+    SPI.begin(18, 19, 23, 5);
+    SPI.setDataMode(SPI_MODE0);
+    if(!SD.begin(SdSpiConfig(5, SHARED_SPI, SD_SCK_MHZ(16)))){
+        Serial.println("Card Mount Failed");
         
-    // }else   {
-    //     Serial.println("Card mount sucessful!");
-    //     cardMount = true;
-    // }
+    }else   {
+        Serial.println("Card mount sucessful!");
+        cardMount = true;
+    } 
 
     // Initialize WiFi
     WiFi.begin(SSID, PASSWD);    
@@ -99,15 +99,15 @@ void setup() {
 }
 
 void loop() {
-    // if(cardMount != true)   {
-    //     if(!SD.begin(SdSpiConfig(5, SHARED_SPI, SD_SCK_MHZ(16)))){
-    //         Serial.println("Card Mount Failed");
-    //     }else   {
-    //         Serial.println("Card mount sucessful!");
-    //         cardMount = true;
-    //     }   
+    if(cardMount != true)   {
+        if(!SD.begin(SdSpiConfig(5, SHARED_SPI, SD_SCK_MHZ(16)))){
+            Serial.println("Card Mount Failed");
+        }else   {
+            Serial.println("Card mount sucessful!");
+            cardMount = true;
+        }   
 
-    // }
+    }
     // Sensor data
     SensorData data = {0};
     data.humidityValid = temp.readHumidity(&data.humidity);
