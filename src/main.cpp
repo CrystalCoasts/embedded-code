@@ -254,7 +254,12 @@ String prepareJsonPayload(const SensorData& data) {
     doc["TDS"] = String(data.tds, 3);
     doc["pH"] = String(data.pH, 3);
     doc["oxygenLevel"] = String(data.oxygenLevel, 3);
-
+    doc["Month"] = String(timeinfo.tm_mon+1);
+    doc["Day"] = String(timeinfo.tm_mday);
+    doc["Year"] = String(timeinfo.tm_year + yearOffset);
+    doc["Hour"] = String(timeinfo.tm_hour);
+    doc["Minute"] = String(timeinfo.tm_min);
+    doc["Second"] = String(timeinfo.tm_sec);
     String jsonPayload;
     serializeJson(doc, jsonPayload);
     return jsonPayload;
@@ -272,7 +277,13 @@ String prepareCSVPayload(const SensorData& data)    {
 void saveCSVData(String data)   {
     Serial.println("Saving data to CSV file...");
     File32 file;
-    String filename = String("/csvFiles/") + (timeinfo.tm_mon+1) + '-' + timeinfo.tm_mday + '-' + (timeinfo.tm_year + yearOffset) + String("-data.csv"); 
+
+    String filename;
+    if(!getLocalTime(&timeinfo))    {
+        filename = "/csvFiles/unknown-time.csv"; 
+    }else   {
+        filename = String("/csvFiles/") + (timeinfo.tm_mon+1) + '-' + timeinfo.tm_mday + '-' + (timeinfo.tm_year + yearOffset) + String("-data.csv"); 
+    }
     if(!SD.open(filename, O_WRITE | O_APPEND))    {       //if cant open file to append/doesn't exist, create said file and write the headers
         file = SD.open(filename, O_WRITE | O_CREAT);
         String header = "Humidity, Temperature, Turbidity, Salinity, TDS, pH, Disolved Oxygen, Month, Day, Year, Hour";
@@ -291,7 +302,14 @@ void saveCSVData(String data)   {
 void saveDataToJSONFile(String data) {
     Serial.println("Saving data to JSON file...");
     Serial.println(data);
-    File32 file = SD.open("/jsonFiles/test.json", O_WRITE | O_CREAT | O_APPEND);
+    File32 file;
+    String filename;
+    if(!getLocalTime(&timeinfo))    {
+        filename = "/jsonFiles/unknown-time.json"; 
+    }else   {
+        filename = String("/jsonFiles/") + (timeinfo.tm_mon+1) + '-' + timeinfo.tm_mday + '-' + (timeinfo.tm_year + yearOffset) + String("-data.json"); 
+    }
+    file = SD.open(filename, O_WRITE | O_CREAT | O_APPEND);
     if (file.println(data)) {
         Serial.println("Data saved successfully.");
     } else {
