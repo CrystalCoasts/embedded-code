@@ -9,6 +9,7 @@ public:
     static constexpr short READ_SAMPLES = 25;
     static constexpr short T_ANALOG_PIN = 32; // ADC1 pin
     static constexpr uint8_t EEPROM_VCLEAR_ADDRESS = 0;
+    static constexpr uint8_t EN = 12;
 
     static TurbiditySensor& Get();
     void begin();

@@ -68,6 +68,7 @@ bool DOSensor::readDO(float* DO, float salinity, float temp) {
     // Serial.print("RAW salinity Read: ");
     // Serial.println(ec_data);
 
+    ec2.send_cmd("Sleep");  //Sleeping the device
     if (ec_data[0] != '\0') {
         *DO = atof(ec_data);
         return true;

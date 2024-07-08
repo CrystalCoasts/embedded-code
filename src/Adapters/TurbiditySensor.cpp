@@ -6,6 +6,8 @@ TurbiditySensor& tbdty = TurbiditySensor::Get();
 TurbiditySensor::TurbiditySensor() {}
 
 void TurbiditySensor::begin() {
+    pinMode(EN, OUTPUT);
+    digitalWrite(EN, HIGH);
     EEPROM.get(EEPROM_VCLEAR_ADDRESS, vClear); // Retrieve the vClear from EEPROM
     analogReadResolution(12); // Set ADC resolution to 12-bit
 }
@@ -16,6 +18,8 @@ TurbiditySensor& TurbiditySensor::Get() {
 }
 
 float TurbiditySensor::calibrate() {
+    digitalWrite(EN, HIGH);
+    delay(1000);
     cumulativeRead = 0;
     for (int i = 0; i < READ_SAMPLES; ++i) {
         cumulativeRead += analogRead(T_ANALOG_PIN);
@@ -26,15 +30,19 @@ float TurbiditySensor::calibrate() {
     EEPROM.put(EEPROM_VCLEAR_ADDRESS, vClear);
     Serial.print("Calibration complete. vClear set to: ");
     Serial.println(vClear);
+     digitalWrite(EN, LOW);
     return vClear;
 }
 
 bool TurbiditySensor::readTurbidity(float* turbidity) {
+    digitalWrite(EN, HIGH);
+    delay(1000);
     if (turbidity == nullptr) {
         return false; // Invalid pointer
     }
 
     int sensorValue = analogRead(T_ANALOG_PIN);
+    digitalWrite(EN, LOW);
     float Vout = sensorValue * (VREF / ADC_DIGITAL); // Convert ADC value to voltage
     float Vin = Vout * DIVIDER_RATIO; // Adjust for voltage divider
 

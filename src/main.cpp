@@ -14,18 +14,13 @@
 #include "TempSensor.h"
 #include "TurbiditySensor.h"
 #include "SalinitySensor.h"
-#include <ph_surveyor.h>
+#include "pHSensor.h"
 #include <base_surveyor.h>
 #include "DOSensor.h"
 
-// WiFiUDP ntpUDP;
-// NTPClient timeClient(ntpUDP);
-SdFat32 SD;
-//WiFiClient timeClient;
+#define SLEEP_TIME_US 30000000 // 1 minute = 60000000 - multiply by any number for amount of minutes
 
-// String formattedDate;
-// String dayStamp;
-// String timeStamp;
+SdFat32 SD;
 
 const char* SSID = "seawall";
 const char* PASSWD = "12345678";
@@ -81,6 +76,14 @@ void blinkLED(int delayTime);
 void setLEDSolid(bool on);
 bool cardMount = false;
 
+//Sleep status for night mode, regular mode, and within 5-10 minutes after supposed connection
+enum sleepStatus    {
+    regular = 1,    
+    withinInterval,
+    nightMode,
+    connectedToDevice
+};
+
 void printLocalTime()   {
     if(!getLocalTime(&timeinfo))    {
         Serial.println("No time available (yet)");
@@ -110,17 +113,18 @@ void setup() {
         Serial.println("SPIFFS mounted successfully.");
     }
 
-    pinMode(STATUS_LED_PIN, OUTPUT);
-    pinMode(BUTTON_PIN, INPUT);
+    // pinMode(STATUS_LED_PIN, OUTPUT);
+    // pinMode(BUTTON_PIN, INPUT);
 
     // Initialize sensors
     temp.begin();
     tbdty.begin();
-    // tbdty.calibrate();
+    //tbdty.calibrate();
     sal.begin();
     sal.EnableDisableSingleReading(SAL, 1);
     //sal.EnableDisableSingleReading(TDS,1);
     DO.begin();
+    phGloabl.begin();
 
     SPI.begin(18, 19, 23, 5);
     SPI.setDataMode(SPI_MODE0);
@@ -133,9 +137,7 @@ void setup() {
     } 
 
     // Initialize WiFi
-    WiFi.begin(SSID, PASSWD);
-    // timeClient.begin();
-    // timeClient.setTimeOffset(-(3600 * 4));
+    //WiFi.begin(SSID, PASSWD);
 
     sntp_set_time_sync_notification_cb(timeavailable);
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer1, ntpServer2);
@@ -143,7 +145,6 @@ void setup() {
 }
 
 void loop() {
-    printLocalTime();
     if(cardMount != true)   {
         if(!SD.begin(SdSpiConfig(5, SHARED_SPI, SD_SCK_MHZ(16)))){
             Serial.println("Card Mount Failed");
@@ -151,7 +152,6 @@ void loop() {
             Serial.println("Card mount sucessful!");
             cardMount = true;
         }   
-
     }
    
     // Sensor data
@@ -159,11 +159,11 @@ void loop() {
     data.temperatureValid  = temp.readTemperature(CELSIUS, &data.temperature);
     data.turbidityValid = tbdty.readTurbidity(&data.turbidity);
     data.salinityValid = sal.readSalinity(&data.salinity);
-    data.pH = pH.read_ph();
+    data.pHValid = phGloabl.readpH(&data.pH);
     data.oxygenLevelValid = DO.readDO(&data.oxygenLevel, data.salinity, data.temperature);
-    setCpuFrequencyMhz(80);
-    data.humidityValid = temp.readHumidity(&data.humidity);
     setCpuFrequencyMhz(240);
+    data.humidityValid = temp.readHumidity(&data.humidity);
+    setCpuFrequencyMhz(80);
 
     // Round readings
     data.humidity = round(data.humidity * 1000.0) / 1000.0;
@@ -183,17 +183,6 @@ void loop() {
     // Validate readings
     //validateSensorReadings(data);
 
-/*
-    if(WiFi.status() == WL_CONNECTED)   {
-        timeClient.update();
-        formattedDate = timeClient.getFormattedTime();
-    }
-    int splitT = formattedDate.indexOf("T");;
-    dayStamp = formattedDate.substring(0, splitT);
-    timeStamp = formattedDate.substring(splitT+1, formattedDate.length() -1);
-    Serial.println("DATE: " + dayStamp + ", HOUR: " + timeStamp);
-*/
-
     String jsonPayload = prepareJsonPayload(data);
     String csvPayLoad = prepareCSVPayload(data);
     printDataOnCLI(data);
@@ -207,22 +196,27 @@ void loop() {
     //saveSensorRecord("12345678");
 
     // Handle button press for turbidity sensor calibration
-    if (digitalRead(BUTTON_PIN) == LOW) {
-        tbdty.calibrate();
-        // Simple debounce
-        while (digitalRead(BUTTON_PIN) == LOW) {
-            delay(50);
-        }
-    }
+    // if (digitalRead(BUTTON_PIN) == LOW) {
+    //     tbdty.calibrate();
+    //     // Simple debounce
+    //     while (digitalRead(BUTTON_PIN) == LOW) {
+    //         delay(50);
+    //     }
+    // }
 
     // Update LED status based on WiFi connection
-    if (WiFi.status() == WL_CONNECTED) {
-        setLEDSolid(true);
-    } else {
-        blinkLED(500);
-    }
+    // if (WiFi.status() == WL_CONNECTED) {
+    //     setLEDSolid(true);
+    // } else {
+    //     blinkLED(500);
+    // }
 
-    delay(5000); // 5 seconds delay for next sensor read
+    //Sleep Mode settings
+    // //esp_sleep_config_gpio_isolate();
+    esp_sleep_enable_timer_wakeup(SLEEP_TIME_US);
+    //esp_light_sleep_start();
+    esp_deep_sleep_start();
+
 }
 
 void printDataOnCLI(const SensorData& data){

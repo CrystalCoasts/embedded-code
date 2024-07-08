@@ -90,6 +90,9 @@ bool SalinitySensor::readSalinity(float* salinity) {
     // Serial.print("RAW salinity Read: ");
     // Serial.println(ec_data);
 
+    ec.send_cmd("Sleep");   //sleeping the device
+    delay(600);
+    Serial.print("Salinity slept");
     if (ec_data[0] != '\0') {
         *salinity = atof(ec_data);
         return true;
