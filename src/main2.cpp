@@ -29,15 +29,34 @@ void receiver(int n_bytes)  {
         mydata = Wire.read();
 }
 
-void receiveEvent(int numBytes) {
-  if (numBytes == sizeof(tm)) {
+// void receiveEvent(int numBytes) {
+//   if (numBytes == sizeof(tm)) {
+//     Wire.readBytes((char *)&timeinfo, sizeof(tm));
+//     // Update system time
+//     timeval tv = {mktime(&timeinfo), 0};
+//     settimeofday(&tv, NULL);
+//     Serial.println("Time updated from master.");
+//   }
+// }
+
+void getTimeFromSlave() {
+  Wire.requestFrom(0x10, sizeof(tm)); // Request time data
+  if(Wire.available() == sizeof(tm)) {
     Wire.readBytes((char *)&timeinfo, sizeof(tm));
-    // Update system time
-    timeval *t = {mktime(&timeinfo), 0};
-    settimeofday(t, NULL);
-    Serial.println("Time updated from master.");
+    timeval tv = {mktime(&timeinfo), 0};
+    settimeofday(&tv, NULL);
+    Serial.println("Time received from slave.");
   }
 }
+
+void sendTimeToSlave() {
+  Wire.beginTransmission(0x10);
+  Wire.write((const uint8_t *)&timeinfo, sizeof(tm)); // Send the time structure
+  Wire.endTransmission();
+  Serial.println("Time sent to slave.");
+}
+
+
 
 void printLocalTime()   {
     if(!getLocalTime(&timeinfo))    {
@@ -57,15 +76,16 @@ void timeavailable(struct timeval *t)
 
 void setup() {
     Serial.begin(115200);
-    Wire.begin(0x10);
-    Wire.onReceive(receiveEvent);
+    Wire.begin();
 
     sntp_set_time_sync_notification_cb(timeavailable);
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer1, ntpServer2);
+    
 }
 
 void loop() {
     delay(100);
+    getTimeFromSlave();
     getLocalTime(&timeinfo);
     Serial.println(&timeinfo, "%A, %B %d, %Y %H:%M:%S");
 }

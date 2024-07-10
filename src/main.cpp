@@ -115,6 +115,26 @@
 //     Serial.println("Time sent to slave");
 // }
 
+// // Respond to I2C requests from master
+// void requestEvent() {
+//   struct tm timeinfo;
+//   if (getLocalTime(&timeinfo)) {
+//     Wire.write((const uint8_t *)&timeinfo, sizeof(tm)); // Send current time
+//   }
+// }
+
+// // Handle incoming time data from master
+// void receiveEvent(int numBytes) {
+//   if (numBytes == sizeof(tm)) {
+//     Wire.readBytes((char *)&timeinfo, sizeof(tm));
+//     // Update system time
+//     timeval tv = {mktime(&timeinfo), 0};
+//     settimeofday(&tv, NULL);
+//     Serial.println("Time updated from master.");
+//   }
+// }
+
+
 // int light = 0;
 
 // void setup() {
@@ -130,9 +150,12 @@
 //         Serial.println("SPIFFS mounted successfully.");
 //     }
 
-//     Wire.begin();
-//     WiFi.begin(SSID, PASSWD);
+//     Wire.begin(0x10);
+//     Wire.onReceive(receiveEvent); // Handler for receiving data
+//     Wire.onRequest(requestEvent); // Handler for sending data
 
+//     WiFi.begin(SSID, PASSWD);
+    
 //     sntp_set_time_sync_notification_cb(timeavailable);
 //     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer1, ntpServer2);
 
@@ -143,7 +166,6 @@
 //     if(WiFi.status == 0)    {
 //         blinkLED(200);
 //     }
-//     sendDataI2C();
 //     getLocalTime(&timeinfo);
 
 //     // if(mydata == 0) {
