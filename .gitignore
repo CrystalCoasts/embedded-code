@@ -21,3 +21,5 @@ secrets.h
 
 # Ignore other unnecessary files
 .history/
+.DS_Store
+src/.DS_Store
