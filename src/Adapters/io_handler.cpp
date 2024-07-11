@@ -1,14 +1,16 @@
 #include "io_handler.h"
-
 #include "rtc_handler.h"
+#include <HTTPClient.h>
 
+extern bool isConnected;
+const char* DATA_URL = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.com/api/data";
 
 // Define these in a suitable header file or at the top of your source file
 const char* KEY_HUMIDITY = "humidity";
 const char* KEY_TEMPERATURE = "temperature";
 const char* KEY_TURBIDITY = "turbidity";
 const char* KEY_SALINITY = "salinity";
-const char* KEY_TDS = "TDS";
+const char* KEY_TDS = "tds";
 const char* KEY_PH = "pH";
 const char* KEY_OXYGEN_LEVEL = "oxygenLevel";
 const char* KEY_MONTH = "Month";
@@ -17,6 +19,7 @@ const char* KEY_YEAR = "Year";
 const char* KEY_HOUR = "Hour";
 const char* KEY_MINUTE = "Minute";
 const char* KEY_SECOND = "Second";
+
 
 void readSensorData(SensorData &data)
 {
@@ -38,6 +41,24 @@ void readSensorData(SensorData &data)
     data.salinity = round(data.salinity * 1000.0) / 1000.0;
 }
 
+
+void uploadData(String jsonData) {
+    if (isConnected) {
+        Serial.println("Sending to Google.");
+        Serial.print(jsonData);
+        HTTPClient http;
+        http.begin(DATA_URL);
+        http.addHeader("Content-Type", "application/json");
+        int httpResponseCode = http.POST(jsonData);
+        http.end();
+    } else {
+        Serial.println("WiFi is not connected. Skipping data upload.");
+    }
+}
+
+
+
+
 void printDataOnCLI(const SensorData& data){
     String toPrint="";
     
@@ -50,8 +71,6 @@ void printDataOnCLI(const SensorData& data){
     toPrint += "|Salinity:"+String(data.salinity,3)+"\n";
     toPrint += "+-----------------------+-----------------------+\n";
     toPrint+= "|Turbidity: "+String(data.turbidity,3)+"\n";
-    toPrint += "+-----------------------+-----------------------+\n";
-    toPrint+= "|Humidity: "+String(data.humidity,3)+"\n";
     toPrint += "+-----------------------+-----------------------+\n";
 
     Serial.println(toPrint);
@@ -161,4 +180,5 @@ String readDataFromJSONFile() {
     // }
     // file.close();
     // return data;
+    return " ";
 }

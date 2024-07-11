@@ -2,8 +2,6 @@
 #define RTC_HANDLER_H
 
 #include <Arduino.h>
-
-
 #include <time.h>
 
 

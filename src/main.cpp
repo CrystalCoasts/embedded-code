@@ -39,7 +39,7 @@ Surveyor_pH pH = Surveyor_pH(35);
 
 
 
-void uploadData(String data);
+// void uploadData(String data);
 
 void sdBegin();
 
@@ -47,6 +47,7 @@ void sdBegin();
 void blinkLED(int delayTime);
 void setLEDSolid(bool on);
 bool cardMount = false;
+bool isConnected = false;
 
 //Sleep status for night mode, regular mode, and within 5-10 minutes after supposed connection
 enum sleepStatus    {
@@ -104,6 +105,7 @@ void setup() {
 }
 
 void loop() {
+    isConnected = WiFi.status() == WL_CONNECTED;
     if(cardMount != true)   {
         if(!SD.begin(SdSpiConfig(5, SHARED_SPI, SD_SCK_MHZ(16)))){
             Serial.println("Card Mount Failed");
@@ -141,19 +143,19 @@ void loop() {
 }
 
 
-void uploadData(String jsonData) {
-    if (WiFi.status() == WL_CONNECTED) {
-        Serial.println("Sending to Google.");
-        // Serial.print(jsonData);
-        HTTPClient http;
-        http.begin(serverName);
-        int httpResponseCode = http.POST(jsonData);
-        http.addHeader("Content-Type", "application/json");
-        http.end();
-    } else {
-        Serial.println("WiFi is not connected. Skipping data upload.");
-    }
-}
+// void uploadData(String jsonData) {
+//     if (WiFi.status() == WL_CONNECTED) {
+//         Serial.println("Sending to Google.");
+//         // Serial.print(jsonData);
+//         HTTPClient http;
+//         http.begin(serverName);
+//         int httpResponseCode = http.POST(jsonData);
+//         http.addHeader("Content-Type", "application/json");
+//         http.end();
+//     } else {
+//         Serial.println("WiFi is not connected. Skipping data upload.");
+//     }
+// }
 
 
 void blinkLED(int delayTime) {

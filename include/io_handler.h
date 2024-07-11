@@ -19,6 +19,7 @@
 
 
 
+
 struct SensorData {
     float humidity = 0;
     bool humidityValid  = true;
@@ -28,7 +29,7 @@ struct SensorData {
     bool turbidityValid= true;
     float salinity = 0;
     bool salinityValid= true;
-    float tds = 0;
+    float tds = 111;
     bool tdsValid= true;
     float pH = 0;
     bool pHValid= true;
@@ -39,6 +40,7 @@ struct SensorData {
 void readSensorData(SensorData& data);
 void validateSensorReadings(SensorData& data); 
 void printDataOnCLI(const SensorData& data);
+void uploadData(String jsonData);
 
 /** file interactions **/
 

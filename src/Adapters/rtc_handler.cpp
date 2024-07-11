@@ -1,8 +1,6 @@
 #include "rtc_handler.h"
-#include <WiFi.h>
 #include "esp_sntp.h"
 #include "NTPClient.h"
-#include "WiFiUdp.h"
 
 const char* NTP_SERVER_1 = "pool.ntp.org";
 const char* NTP_SERVER_2 = "time.nist.gov";
