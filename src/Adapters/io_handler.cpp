@@ -27,9 +27,9 @@ void readSensorData(SensorData &data)
     data.oxygenLevelValid = DO.readDO(&data.oxygenLevel, data.salinity, data.temperature);
 
     // Increase frequency for DHT sensor
-    setCpuFrequencyMhz(240);
+    // setCpuFrequencyMhz(240);
     data.humidityValid = temp.readHumidity(&data.humidity);
-    setCpuFrequencyMhz(80);  // Revert to low frequency after reading
+    // setCpuFrequencyMhz(80);  // Revert to low frequency after reading
 
     // Round readings
     data.humidity = round(data.humidity * 1000.0) / 1000.0;
@@ -50,6 +50,8 @@ void printDataOnCLI(const SensorData& data){
     toPrint += "|Salinity:"+String(data.salinity,3)+"\n";
     toPrint += "+-----------------------+-----------------------+\n";
     toPrint+= "|Turbidity: "+String(data.turbidity,3)+"\n";
+    toPrint += "+-----------------------+-----------------------+\n";
+    toPrint+= "|Humidity: "+String(data.humidity,3)+"\n";
     toPrint += "+-----------------------+-----------------------+\n";
 
     Serial.println(toPrint);

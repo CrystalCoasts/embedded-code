@@ -28,7 +28,7 @@ SdFat32 SD;
 const char* SSID = "seawall";
 const char* PASSWD = "12345678";
 const char* WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzdREDYLRb1ew8CjwGY_WnrIU0UWW0Sn3Wr4XdT8Jv0VjXuQxJV7GVCKZeYtEb2zrKb/exec";
-const char *serverName = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.com/";
+const char *serverName = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.com/api/data";
 //const char *serverName = "MONGODB_URI=mongodb+srv://lisettehawkins09:cxO0hBBXellzkuAX@cluster0-sensordatassam.sk9l59s.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0-sensorDatasSample";
 
 const int STATUS_LED_PIN = 2; // Commonly the onboard LED pin on ESP32
@@ -134,6 +134,8 @@ void loop() {
     saveDataToJSONFile(SD, jsonPayload);
     saveCSVData(SD, csvPayLoad);
 
+    uploadData(jsonPayload);
+
     printLocalTime();
 
 }
@@ -144,7 +146,7 @@ void uploadData(String jsonData) {
         Serial.println("Sending to Google.");
         // Serial.print(jsonData);
         HTTPClient http;
-        http.begin(WEB_APP_URL);
+        http.begin(serverName);
         int httpResponseCode = http.POST(jsonData);
         http.addHeader("Content-Type", "application/json");
         http.end();
