@@ -98,7 +98,7 @@ void setup() {
     rtc_begin();
 
     //freeRTOS testing jajaja
-    sdHandler = xSemaphoreCreateBinary();       /create a binarey semaphore
+    sdHandler = xSemaphoreCreateBinary();       //create a binarey semaphore
 
     xTaskCreate(
         handleDataUpload,       // function name of the task
@@ -126,8 +126,6 @@ void loop() {
     // Sensor data
     SensorData data;   
     readSensorData(data);
-
-    
 
     // Validate readings
     //validateSensorReadings(data);
@@ -158,17 +156,26 @@ void handleDataUpload(void *parameter)   {
     while(1)    {
         xSemaphoreTake(sdHandler, portMAX_DELAY);
         
-        //read from sd card
+        File32 file = SD.open("/jsonData");
+        File32 entry = file.openNextFile();
+        while(entry!=EOF)   {
+            uploadData2(readDataFromSD(entry.name()));
+            if(WiFi.status == 0)    {
+                entry.close();
+                file.close();
+                vTaskSuspend(handleDataUpload);
+                break;
+            }
+        }
 
         xSemaphoreGive(sdHandler);
         delay(100);
-        if(WiFi.status == 0)
-        vTaskSuspend(handleDataUpload);
+        
     }
 }
 
-String readDataFromSD() {
-    File32 file = SD.open("/data.txt");
+String readDataFromSD(const char* fileName) {
+    File32 file = SD.open("/jsonData");
     if (!file) {
         Serial.println("Failed to open file for reading");
         return String();
@@ -178,7 +185,7 @@ String readDataFromSD() {
     return data;
 }
 
-void uploadData3(const String& data) {
+void uploadData2(const String& data) {
     if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
         http.begin(serverName);
