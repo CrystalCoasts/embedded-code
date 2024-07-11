@@ -79,7 +79,7 @@ void setup() {
     tbdty.begin();
     //tbdty.calibrate();
     sal.begin();
-    sal.EnableDisableSingleReading(SAL, 1);
+    // sal.EnableDisableSingleReading(SAL, 1);
     //sal.EnableDisableSingleReading(TDS,1);
     DO.begin();
     phGloabl.begin();
@@ -119,9 +119,7 @@ void loop() {
     SensorData data;   
     readSensorData(data);
 
-    // Default values for other sensors
-    data.tds = 111.0;
-    data.pHValid = true;
+    
 
     // Validate readings
     //validateSensorReadings(data);
@@ -131,8 +129,8 @@ void loop() {
     printDataOnCLI(data);
 
 
-    jsonPayload= prepareJsonPayload(data);
-    csvPayLoad = prepareCSVPayload(data);
+    // jsonPayload= prepareJsonPayload(data);
+    // csvPayLoad = prepareCSVPayload(data);
     saveDataToJSONFile(SD, jsonPayload);
     saveCSVData(SD, csvPayLoad);
 

@@ -28,17 +28,22 @@ void readSensorData(SensorData &data)
     data.salinityValid = sal.readSalinity(&data.salinity);
     data.pHValid = phGloabl.readpH(&data.pH);
     data.oxygenLevelValid = DO.readDO(&data.oxygenLevel, data.salinity, data.temperature);
+    data.tdsValid = sal.readTDS(&data.tds);
+    data.humidityValid = temp.readHumidity(&data.humidity);
+
 
     // Increase frequency for DHT sensor
     // setCpuFrequencyMhz(240);
-    data.humidityValid = temp.readHumidity(&data.humidity);
     // setCpuFrequencyMhz(80);  // Revert to low frequency after reading
 
     // Round readings
-    data.humidity = round(data.humidity * 1000.0) / 1000.0;
     data.temperature = round(data.temperature * 1000.0) / 1000.0;
     data.turbidity = round(data.turbidity * 1000.0) / 1000.0;
     data.salinity = round(data.salinity * 1000.0) / 1000.0;
+    data.pH = round(data.pH * 1000.0) / 1000.0;
+    data.oxygenLevel = round(data.oxygenLevel * 1000.0) / 1000.0;
+    data.tds = round(data.tds * 1000.0) / 1000.0;
+    data.humidity = round(data.humidity * 1000.0) / 1000.0;
 }
 
 
@@ -71,6 +76,14 @@ void printDataOnCLI(const SensorData& data){
     toPrint += "|Salinity:"+String(data.salinity,3)+"\n";
     toPrint += "+-----------------------+-----------------------+\n";
     toPrint+= "|Turbidity: "+String(data.turbidity,3)+"\n";
+    toPrint += "+-----------------------+-----------------------+\n";
+    toPrint+= "|TDS: "+String(data.tds,3)+"\n";
+    toPrint += "+-----------------------+-----------------------+\n";
+    toPrint+= "|Oxigen Level: "+String(data.oxygenLevel,3)+"\n";
+    toPrint += "+-----------------------+-----------------------+\n";
+    toPrint+= "|PH: "+String(data.pH,3)+"\n";
+    toPrint += "+-----------------------+-----------------------+\n";
+    toPrint+= "|Humidity: "+String(data.humidity,3)+"\n";
     toPrint += "+-----------------------+-----------------------+\n";
 
     Serial.println(toPrint);

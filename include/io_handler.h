@@ -21,19 +21,19 @@
 
 
 struct SensorData {
-    float humidity = 0;
+    float humidity;
     bool humidityValid  = true;
-    float temperature = 0;
+    float temperature;
     bool temperatureValid= true;
-    float turbidity = 0;
+    float turbidity;
     bool turbidityValid= true;
-    float salinity = 0;
+    float salinity;
     bool salinityValid= true;
-    float tds = 111;
+    float tds ;
     bool tdsValid= true;
-    float pH = 0;
+    float pH ;
     bool pHValid= true;
-    float oxygenLevel=0;
+    float oxygenLevel;
     bool oxygenLevelValid= true;
 };
 
