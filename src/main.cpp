@@ -34,10 +34,7 @@ const char *serverName = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.co
 const int STATUS_LED_PIN = 2; // Commonly the onboard LED pin on ESP32
 const int BUTTON_PIN = 0;
 
-
 Surveyor_pH pH = Surveyor_pH(35);
-
-
 
 // void uploadData(String data);
 
@@ -57,9 +54,10 @@ enum sleepStatus    {
     connectedToDevice
 };
 
+TaskHandle_t taskHandleDataUpload;
+SemaphoreHandle_t sdHandler;
 
 void setup() {
-
     setCpuFrequencyMhz(80);
     Serial.begin(115200);
     Wire.begin();
@@ -98,7 +96,20 @@ void setup() {
     WiFi.begin(SSID, PASSWD);
 
     rtc_begin();
-    
+
+    //freeRTOS testing jajaja
+    sdHandler = xSemaphoreCreateBinary();       /create a binarey semaphore
+
+    xTaskCreate(
+        handleDataUpload,       // function name of the task
+        "Upload Data 2",   // name of the task (for debugging)
+        2048,              // stack size (bytes)
+        NULL,              //Parameter to pass
+        1,                 //Task priority
+        &taskHandleDataUpload   //Task handle
+    );
+    vTaskSuspend(taskHandleDataUpload);
+    xSemaphoreGive(sdHandler);
 }
 
 void loop() {
@@ -120,6 +131,8 @@ void loop() {
 
     // Validate readings
     //validateSensorReadings(data);
+    if(WiFi.status)    
+        vTaskResume(handleDataUpload);
 
     String jsonPayload = prepareJsonPayload(data);
     String csvPayLoad = prepareCSVPayload(data);
@@ -128,14 +141,62 @@ void loop() {
 
     // jsonPayload= prepareJsonPayload(data);
     // csvPayLoad = prepareCSVPayload(data);
-    saveDataToJSONFile(SD, jsonPayload);
-    saveCSVData(SD, csvPayLoad);
+    if(xSemaphoreTake(sdHandler, portMAX_DELAY))    {
+        saveDataToJSONFile(SD, jsonPayload);
+        saveCSVData(SD, csvPayLoad);
+    }else
+        Serial.println("SD resource is taken, skipping data upload");
+    
 
     uploadData(jsonPayload);
-
     printLocalTime();
 
+
 }
+
+void handleDataUpload(void *parameter)   {
+    while(1)    {
+        xSemaphoreTake(sdHandler, portMAX_DELAY);
+        
+        //read from sd card
+
+        xSemaphoreGive(sdHandler);
+        delay(100);
+        if(WiFi.status == 0)
+        vTaskSuspend(handleDataUpload);
+    }
+}
+
+String readDataFromSD() {
+    File32 file = SD.open("/data.txt");
+    if (!file) {
+        Serial.println("Failed to open file for reading");
+        return String();
+    }
+    String data = file.readStringUntil('\n');
+    file.close();
+    return data;
+}
+
+void uploadData3(const String& data) {
+    if (WiFi.status() == WL_CONNECTED) {
+        HTTPClient http;
+        http.begin(serverName);
+        http.addHeader("Content-Type", "application/json");
+        int httpResponseCode = http.POST(data);
+        if (httpResponseCode > 0) {
+            String response = http.getString();
+            Serial.println("HTTP Response code: " + httpResponseCode);
+            Serial.println("Response: " + response);
+        } else {
+            Serial.println("Error on sending POST: " + httpResponseCode);
+        }
+        http.end();
+    } else {
+        Serial.println("WiFi is not connected. Skipping data upload.");
+    }
+}
+
 
 
 // void uploadData(String jsonData) {
