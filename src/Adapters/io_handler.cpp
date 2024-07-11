@@ -26,9 +26,9 @@ void readSensorData(SensorData &data)
     data.temperatureValid = temp.readTemperature(CELSIUS, &data.temperature);
     data.turbidityValid = tbdty.readTurbidity(&data.turbidity);
     data.salinityValid = sal.readSalinity(&data.salinity);
+    data.tdsValid = sal.readTDS(&data.tds);
     data.pHValid = phGloabl.readpH(&data.pH);
     data.oxygenLevelValid = DO.readDO(&data.oxygenLevel, data.salinity, data.temperature);
-    data.tdsValid = sal.readTDS(&data.tds);
     data.humidityValid = temp.readHumidity(&data.humidity);
 
 

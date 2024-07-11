@@ -98,10 +98,7 @@ void setup() {
     WiFi.begin(SSID, PASSWD);
 
     rtc_begin();
-
-
-
-
+    
 }
 
 void loop() {
