@@ -1,7 +1,7 @@
 # embedded-code
 
 # Original idea
-For the proof of concept SD1, we utilize the FIU network in conjunction with Google API to transmit sensor data to a web application.
+The project, developed for Senior Design, involves a sensor kit integrated into a seawall to create a "smart-seawall." Situated along the Miami coasts, the smart-seawall aims to monitor oceanic data effectively. The design of the seawall emphasizes blending into its natural surroundings, minimizing the visual impact of the device in its environment.
 
 
 # Development
