@@ -3,6 +3,8 @@
 
 #include <WebSocketsClient.h>
 #include <Arduino.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 //commands
 enum class ws_cmd {
@@ -16,19 +18,22 @@ enum class ws_errors{
 
 class WebSocket {
 public:
-    void init();  // Initialize WebSocket connection
-    void begin();  //call loop
+    void init();
+    void begin();  // Now used to check if the WebSocket needs reconnection or other periodic checks
     static WebSocket& Get();
-    static void webSocketEvent(WStype_t type, uint8_t* payload, size_t length);
-
     void send_to_ws(String message);
 
 private:
-    WebSocket();  // Private constructor
-    WebSocket(const WebSocket&) = delete;  // No copy constructor
-    WebSocket& operator=(const WebSocket&) = delete;  // No copy assignment
+    WebSocket();
+    WebSocket(const WebSocket&) = delete;
+    WebSocket& operator=(const WebSocket&) = delete;
+
+    static void webSocketTask(void * pvParameters); // Task for managing WebSocket connection
+    static void webSocketEvent(WStype_t type, uint8_t * payload, size_t length);
+    void handleEvents();
 
     WebSocketsClient webSocket;
+    TaskHandle_t webSocketTaskHandle = NULL;
 
     static const char* const WS_SERVER;
     static const uint16_t WS_PORT;
@@ -37,16 +42,11 @@ private:
     uint8_t processPayload(uint8_t * payload, size_t length);
     uint8_t handleCommand(String command, String data);
 
-
-    //individual command handlers
+    // Individual command handlers
     uint8_t handleReadCommand(String data);
     uint8_t handleUpdateCommand(String data);
 };
 
-
-//might mess up status tracking
 extern WebSocket& ws;  // Global WebSocket instance
-
-
 
 #endif // WEBSOCKETS_H

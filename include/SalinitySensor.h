@@ -14,6 +14,7 @@ public:
     void begin();
     void EnableDisableSingleReading(uint8_t readOption, uint8_t data);
     bool readSalinity(float* salinity);
+    bool readTDS(float* salinity);
     void DisableAllReadings();
 
 private:
@@ -25,6 +26,7 @@ private:
     static constexpr uint8_t TEMP_COMP = 25;
     static constexpr uint8_t K_FACTOR = 1;
     bool salFlag = false;
+    bool tdsFlag = false;
 
     bool parseValue(const char* rawBuff, char* parsedBuff, const char* key);
     SalinitySensor();

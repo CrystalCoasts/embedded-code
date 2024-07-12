@@ -1,6 +1,7 @@
 #include "SalinitySensor.h"
 #include <iostream>
 
+String EC_TAG = "[EC_SENSOR] ";
 SalinitySensor& sal = SalinitySensor::Get();
 
 SalinitySensor::SalinitySensor() {}
@@ -15,7 +16,8 @@ void SalinitySensor::begin() {
     ec.receive_cmd(ec_data, sizeof(ec_data));
 
     if (parseValue(ec_data, parsedData, "?Cal")) {
-        Serial.println("Calibration profile detected.");
+        String msg = EC_TAG + String ("Calibration profile detected.");
+        Serial.println(msg);
         calibrated = (atoi(parsedData) != 0);
     }
 
@@ -24,7 +26,8 @@ void SalinitySensor::begin() {
     ec.receive_cmd(ec_data, sizeof(ec_data));
 
     if (parseValue(ec_data, parsedData, "?T")) {
-        Serial.println("Correct Temp compensation.");
+        String msg = EC_TAG + String ("Correct Temp compensation.");
+        Serial.println(msg);
         tempComp = (atoi(parsedData) == TEMP_COMP);
     }
     if (!tempComp) {
@@ -38,7 +41,8 @@ void SalinitySensor::begin() {
     ec.receive_cmd(ec_data, sizeof(ec_data));
 
     if (parseValue(ec_data, parsedData, "?K")) {
-        Serial.println("Correct Conversion Factor.");
+        String msg = EC_TAG + String ("Correct Conversion Factor.");
+        Serial.println(msg);
         kFactor = (atoi(parsedData) == K_FACTOR);
     }
     if (!kFactor) {
@@ -52,17 +56,20 @@ void SalinitySensor::begin() {
 
 void SalinitySensor::EnableDisableSingleReading(uint8_t readOption, uint8_t data) {
     String command = "O,";
+    String msg;
     switch (readOption) {
     case SAL:
         command += "S," + String(data);
-        Serial.println("Salinity reading enabled");
-        salFlag = true;
+        // msg = EC_TAG + String ("Salinity reading status changed");
+        Serial.println(msg);
         break;
     case EC:
         command += "EC," + String(data);
         break;
     case TDS:
         command += "TDS," + String(data);
+        // msg = EC_TAG + String ("TDS status changed");
+        Serial.println(msg);
         break;
     case SG:
         command += "SG," + String(data);
@@ -76,20 +83,47 @@ void SalinitySensor::EnableDisableSingleReading(uint8_t readOption, uint8_t data
 }
 
 bool SalinitySensor::readSalinity(float* salinity) {
-    ec.send_cmd("O,?");
-    delay(300);
-    ec.receive_cmd(ec_data, sizeof(ec_data));
-    char salStr[32];
-    if (!salFlag) {
-        EnableDisableSingleReading(SAL, 1);
 
-    }
+    //enable only salinity reading
+    EnableDisableSingleReading(EC, 0);
+    EnableDisableSingleReading(TDS, 0);
+    EnableDisableSingleReading(SG, 0);
+    EnableDisableSingleReading(SAL, 0);
+    EnableDisableSingleReading(SAL, 1);
+
+    // ec.send_cmd("O,?");
+    // delay(300);
+    // ec.receive_cmd(ec_data, sizeof(ec_data));
+    // char salStr[32];
+    // if (!salFlag) {
+    //     EnableDisableSingleReading(SAL, 1);
+
+    // }
 
     ec.send_cmd("R");
     delay(600);
     ec.receive_cmd(ec_data, sizeof(ec_data));
     // Serial.print("RAW salinity Read: ");
     // Serial.println(ec_data);
+
+    if (ec_data[0] != '\0') {
+        *salinity = atof(ec_data);
+        return true;
+    }
+    return false;
+}
+
+bool SalinitySensor::readTDS(float* salinity){
+    //enable only TDS reading
+    EnableDisableSingleReading(EC, 0);
+    EnableDisableSingleReading(TDS, 0);
+    EnableDisableSingleReading(SG, 0);
+    EnableDisableSingleReading(SAL, 0);
+    EnableDisableSingleReading(TDS, 1);
+
+    ec.send_cmd("R");
+    delay(600);
+    ec.receive_cmd(ec_data, sizeof(ec_data));
 
     if (ec_data[0] != '\0') {
         *salinity = atof(ec_data);
@@ -108,7 +142,7 @@ void SalinitySensor::DisableAllReadings() {
     delay(500);
     ec.send_cmd("O,SG,0");
     delay(500);
-    Serial.println("Cleared Readings.");
+    // Serial.println("Cleared Readings.");
 }
 
 bool SalinitySensor::parseValue(const char* rawBuff, char* parsedBuff, const char* key) {

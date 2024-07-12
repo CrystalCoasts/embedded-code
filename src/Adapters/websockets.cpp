@@ -1,56 +1,61 @@
 #include "WebSockets.h"
-#include "websockets.h"
-
-// Initialization of static constants
+#include "io_handler.h"
 
 const char* const WebSocket::WS_SERVER = "smart-seawall-server-staging-b61a03b529a6.herokuapp.com";
 const uint16_t WebSocket::WS_PORT = 80;
 const char* const WebSocket::WS_PATH = "/?clientType=esp32";
+String WEBSOCKET_TAG = "[WEB_SOCKET] ";
 
-WebSocket& ws = WebSocket::Get();  // Create the global WebSocket instance
+// extern SemaphoreHandle_t sdCardMutex;
+// extern SemaphoreHandle_t sensorMutex;
+extern TimerHandle_t shutdownTimerHandle;
 
-WebSocket::WebSocket() {
-    // Private constructor
-}
-
-void WebSocket::init() {
-    
-    webSocket.begin(WS_SERVER, WS_PORT, WS_PATH);
-    webSocket.onEvent(webSocketEvent);
-    webSocket.setReconnectInterval(5000);
-}
-
-void WebSocket::begin() {
-    // Serial.println("WebSocket loop start");
-    webSocket.loop();
-    // Serial.println("WebSocket loop end");
-}
-
+WebSocket& ws = WebSocket::Get(); 
 
 WebSocket& WebSocket::Get() {
     static WebSocket instance;
     return instance;
 }
 
-void WebSocket::webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
-    switch(type) {
-        case WStype_DISCONNECTED:
-            Serial.println("[WebSocket] Disconnected!");
-            break;
-        case WStype_CONNECTED:
-            Serial.println("[WebSocket] Connected to server");
-            ws.send_to_ws("Hello from ESP32!");  // Send a message upon connection
-            break;
-        case WStype_TEXT:
-            
-            ws.processPayload(payload,length );
-            break;
+WebSocket::WebSocket() {
+    // Private constructor
+}
+
+void WebSocket::init() {
+    xTaskCreate(webSocketTask, "WebSocketTask", 8192, this, 1, &webSocketTaskHandle);
+}
+
+void WebSocket::webSocketTask(void * pvParameters) {
+    WebSocket *self = static_cast<WebSocket*>(pvParameters);
+    self->webSocket.begin(WS_SERVER, WS_PORT, WS_PATH);
+    self->webSocket.onEvent(webSocketEvent);
+    self->webSocket.setReconnectInterval(5000);
+
+    while (true) {
+        self->webSocket.loop();
+        vTaskDelay(pdMS_TO_TICKS(10)); // Lower delay to keep WebSocket loop responsive
     }
 }
 
+void WebSocket::webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
+    WebSocket& ws = Get();
+    switch(type) {
+        case WStype_DISCONNECTED:
+            Serial.println(WEBSOCKET_TAG + " Disconnected");
+            break;
+        case WStype_CONNECTED:
+            Serial.println(WEBSOCKET_TAG + " Connected!");
+            ws.send_to_ws("ESP AVAILABLE");
+            break;
+        case WStype_TEXT:
+            ws.processPayload(payload, length);
+            break;
+    }
+}
 void WebSocket::send_to_ws(String message)
 {
     webSocket.sendTXT(message);
+    // delay(300);
 }
 
 uint8_t WebSocket::processPayload(uint8_t * payload, size_t length) {
@@ -76,6 +81,7 @@ uint8_t WebSocket::processPayload(uint8_t * payload, size_t length) {
 }
 
 uint8_t WebSocket::handleCommand(String command, String data) {
+    String msg;
     // Process the command
     if (command.equals("read")) 
         return handleReadCommand(data);
@@ -88,23 +94,84 @@ uint8_t WebSocket::handleCommand(String command, String data) {
     
     else {
         // Unknown command
-        Serial.println("Unknown command: " + command);
+        msg = WEBSOCKET_TAG + " Unknown command:" + command;
+        Serial.println(msg);
         return (uint8_t)ws_errors::EMPTY_STR;
     }
 
     return 0;
 }
 
-uint8_t WebSocket::handleReadCommand(String data)
+uint8_t WebSocket::handleReadCommand(String cmd_data)
 {
-    Serial.println("Handling read command with data: " + data);
-    ws.send_to_ws("Read received"); 
+    String msg;
+    msg = String(WEBSOCKET_TAG + "Handling read command with data: "+ cmd_data);
+    Serial.println(msg);
+
+        msg = "[WEB_SOCKET] Handling read command with data: " + cmd_data;
+        Serial.println(msg);
+        ws.send_to_ws("Read " + cmd_data + " received");
+
+        if (cmd_data.equals("sensors")) {
+            Serial.println("[WEB_SOCKET] Reading sensor data");
+            SensorData data;
+            readSensorData(data);
+            String jsonPayload = prepareJsonPayload(data);
+            uploadData(jsonPayload);
+            ws.send_to_ws("Data uploaded");
+        }
+    
+
+    if (cmd_data.equals("bat")){
+        msg = WEBSOCKET_TAG + "Reading battery data";
+        Serial.println(msg);
+        // Read battery data
+        // String batData = readBatteryData();
+        // uploadData(batData);
+        // Serial.println("Battery data uploaded");
+        ws.send_to_ws("Battery data uploaded");
+        ws.send_to_ws("Battery: 100%");
+    }
+
     return 0;
 }
 
-uint8_t WebSocket::handleUpdateCommand(String data)
+
+
+uint8_t WebSocket::handleUpdateCommand(String cmd_data)
 {
-    Serial.println("Handling updt command with data: " + data);
-    ws.send_to_ws("Update next wakeup received"); 
-    return 0;
+    String msg;
+    msg = String(WEBSOCKET_TAG + "Handling schedule command with data: "+ cmd_data);
+    Serial.println(msg);
+
+    // Check if the command data is a valid number and not empty
+    if (cmd_data.length() == 0 || !cmd_data.toInt()) {
+
+        //######### for testing only ERASE #########
+        uint64_t time = 1000;
+        BaseType_t result = xTimerChangePeriod(shutdownTimerHandle, pdMS_TO_TICKS(time), 100);
+        //######### for testing only ERASE #########
+        
+        ws.send_to_ws("Error: Invalid timer value. Command ignored.");
+        return 1; // Return an error code or similar
+    }
+
+    uint64_t time = cmd_data.toInt(); // Convert string to integer
+    if (time <= 0) {
+        ws.send_to_ws("Error: Timer value must be greater than zero. Command ignored.");
+        return 1;
+    }
+
+    time *= 60000; // Convert minutes to milliseconds
+    BaseType_t result = xTimerChangePeriod(shutdownTimerHandle, pdMS_TO_TICKS(time), 100);
+    if (result != pdPASS) {
+        ws.send_to_ws("Error: Failed to set timer.");
+        return 1;
+    }
+
+    String ack = "Schedule wakeup " + cmd_data + " minutes command received and set.";
+    ws.send_to_ws(ack);
+    ws.send_to_ws("Wake up scheduled");
+
+    return 0; // Success
 }
