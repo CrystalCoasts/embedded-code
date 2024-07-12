@@ -163,24 +163,26 @@ void handleDataUpload(void *parameter)   {
             if(WiFi.status == 0)    {
                 entry.close();
                 file.close();
+                xSemaphoreGive(sdHandler);
                 vTaskSuspend(handleDataUpload);
+                delay(100);
                 break;
             }
         }
 
         xSemaphoreGive(sdHandler);
         delay(100);
-        
     }
 }
 
 String readDataFromSD(const char* fileName) {
-    File32 file = SD.open("/jsonData");
+    File32 file = SD.open(fileName);
     if (!file) {
         Serial.println("Failed to open file for reading");
         return String();
     }
     String data = file.readStringUntil('\n');
+    
     file.close();
     return data;
 }
