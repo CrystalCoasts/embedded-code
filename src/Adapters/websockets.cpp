@@ -1,5 +1,7 @@
 #include "WebSockets.h"
 #include "io_handler.h"
+#include "globals.h"
+#include "rtc_handler.h"
 
 const char* const WebSocket::WS_SERVER = "smart-seawall-server-staging-b61a03b529a6.herokuapp.com";
 const uint16_t WebSocket::WS_PORT = 80;
@@ -160,8 +162,8 @@ uint8_t WebSocket::handleUpdateCommand(String cmd_data)
     if (cmd_data.length() == 0 || !cmd_data.toInt()) {
 
         //######### for testing only ERASE #########
-        uint64_t time = 1000;
-        BaseType_t result = xTimerChangePeriod(shutdownTimerHandle, pdMS_TO_TICKS(time), 100);
+        uint64_t time = 5 * MINUTE_US;  // 5 minutes in microseconds
+        saveTimerSettings(time);
         //######### for testing only ERASE #########
         
         ws.send_to_ws("Error: Invalid timer value. Command ignored.");

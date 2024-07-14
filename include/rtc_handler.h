@@ -34,5 +34,7 @@ void printTime();
 uint8_t printLocalTime();
 
 void updateSystemTime(const struct tm& newTime);
+void saveTimerSettings(uint64_t userPowerOn);
+void loadTimerSettings();
 
 #endif

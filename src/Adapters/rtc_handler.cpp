@@ -1,6 +1,9 @@
 #include "rtc_handler.h"
 #include "esp_sntp.h"
 #include "NTPClient.h"
+#include "globals.h"
+
+Preferences preferences;
 
 
 String RTC_TAG ="[RTC_TAG] ";
@@ -88,3 +91,19 @@ void updateSystemTime(const struct tm& newTime) {
     // For further verification, you might want to print the new time
     printLocalTime();
 }
+
+void saveTimerSettings(uint64_t userPowerOn) {
+    preferences.begin("my_timers", false); // Open NVS in read/write mode
+    Serial.println("Saving power on timer: "+ String(userPowerOn));
+    preferences.putInt("powerOnTimer", userPowerOn);
+    preferences.end(); // Close NVS to save changes
+}
+
+void loadTimerSettings() {
+    preferences.begin("my_timers", true); // Open NVS in read-only mode
+    USER_POWER_ON = preferences.getInt("powerOnTimer", 5 * MINUTE_US); // default to 3 minutes if not set
+    Serial.println("Loaded power on timer: "+ String(USER_POWER_ON));
+    preferences.end(); // Close NVS after reading
+}
+
+
