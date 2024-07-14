@@ -124,12 +124,12 @@ String prepareJsonPayload(const SensorData& data) {
     doc[KEY_TDS] = String(data.tds, 3);
     doc[KEY_PH] = String(data.pH, 3);
     doc[KEY_OXYGEN_LEVEL] = String(data.oxygenLevel, 3);
-    // doc[KEY_MONTH] = String(timeinfo.tm_mon+1);
-    // doc[KEY_DAY] = String(timeinfo.tm_mday);
-    // doc[KEY_YEAR] = String(timeinfo.tm_year);
-    // doc[KEY_HOUR] = String(timeinfo.tm_hour);
-    // doc[KEY_MINUTE] = String(timeinfo.tm_min);
-    // doc[KEY_SECOND] = String(timeinfo.tm_sec);
+    doc[KEY_MONTH] = String(timeinfo.tm_mon+1);
+    doc[KEY_DAY] = String(timeinfo.tm_mday);
+    doc[KEY_YEAR] = String(timeinfo.tm_year);
+    doc[KEY_HOUR] = String(timeinfo.tm_hour);
+    doc[KEY_MINUTE] = String(timeinfo.tm_min);
+    doc[KEY_SECOND] = String(timeinfo.tm_sec);
     String jsonPayload;
     serializeJson(doc, jsonPayload);
     return jsonPayload;
