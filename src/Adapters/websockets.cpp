@@ -25,6 +25,13 @@ void WebSocket::init() {
     xTaskCreate(webSocketTask, "WebSocketTask", 8192, this, 1, &webSocketTaskHandle);
 }
 
+void WebSocket::stop() {
+    webSocket.disconnect();
+    vTaskDelete(webSocketTaskHandle); // Ensure the task is stopped if running
+    Serial.println(WEBSOCKET_TAG + " WebSocket stopped.");
+}
+
+
 void WebSocket::webSocketTask(void * pvParameters) {
     WebSocket *self = static_cast<WebSocket*>(pvParameters);
     self->webSocket.begin(WS_SERVER, WS_PORT, WS_PATH);
@@ -32,6 +39,11 @@ void WebSocket::webSocketTask(void * pvParameters) {
     self->webSocket.setReconnectInterval(5000);
 
     while (true) {
+        if(WiFi.status() != WL_CONNECTED) {
+            Serial.println("WiFi not connected. Skipping ws loop.");
+            vTaskDelay(pdMS_TO_TICKS(10000)); // Delay before next execution cycle
+            continue;
+        }
         self->webSocket.loop();
         vTaskDelay(pdMS_TO_TICKS(10)); // Lower delay to keep WebSocket loop responsive
     }
