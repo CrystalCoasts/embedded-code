@@ -7,8 +7,8 @@
 
 extern SemaphoreHandle_t sdCardMutex;
 extern SemaphoreHandle_t sensorMutex;
-const char* DATA_URL = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.com/api/data";
-// const char* DATA_URL = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.com/api/test-data";
+// const char* DATA_URL = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.com/api/data";
+const char* DATA_URL = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.com/api/test-data";
 
 // Define these in a suitable header file or at the top of your source file
 const char* KEY_HUMIDITY = "humidity";
@@ -61,20 +61,20 @@ bool uploadData(String jsonData) {
         Serial.println("Not connected to WiFi. Data not uploaded.");
         return false;
     }
-        
+    Serial.println("Uploading: "+jsonData);    
     HTTPClient http;
     http.begin(DATA_URL);
     http.addHeader("Content-Type", "application/json");
     int httpResponseCode = http.POST(jsonData);
-    if (httpResponseCode > 0) {
-        String response = http.getString();
-        Serial.println("HTTP Response code: " + String(httpResponseCode));
-        Serial.println(response);
-    } else {
-        Serial.println("HTTP POST request failed.");
-    }
+    // if (httpResponseCode > 0) {
+    //     String response = http.getString();
+    //     Serial.println("HTTP Response code: " + String(httpResponseCode));
+    //     Serial.println(response);
+    // } else {
+    //     Serial.println("HTTP POST request failed.");
+    // }
     http.end();
-    return httpResponseCode == 200; // Check for HTTP success
+    return (httpResponseCode == 200 || httpResponseCode == 201);
 } 
 
 void printDataOnCLI(const SensorData& data){
@@ -124,12 +124,12 @@ String prepareJsonPayload(const SensorData& data) {
     doc[KEY_TDS] = String(data.tds, 3);
     doc[KEY_PH] = String(data.pH, 3);
     doc[KEY_OXYGEN_LEVEL] = String(data.oxygenLevel, 3);
-    doc[KEY_MONTH] = String(timeinfo.tm_mon+1);
-    doc[KEY_DAY] = String(timeinfo.tm_mday);
-    doc[KEY_YEAR] = String(timeinfo.tm_year);
-    doc[KEY_HOUR] = String(timeinfo.tm_hour);
-    doc[KEY_MINUTE] = String(timeinfo.tm_min);
-    doc[KEY_SECOND] = String(timeinfo.tm_sec);
+    // doc[KEY_MONTH] = String(timeinfo.tm_mon+1);
+    // doc[KEY_DAY] = String(timeinfo.tm_mday);
+    // doc[KEY_YEAR] = String(timeinfo.tm_year);
+    // doc[KEY_HOUR] = String(timeinfo.tm_hour);
+    // doc[KEY_MINUTE] = String(timeinfo.tm_min);
+    // doc[KEY_SECOND] = String(timeinfo.tm_sec);
     String jsonPayload;
     serializeJson(doc, jsonPayload);
     return jsonPayload;
@@ -234,21 +234,21 @@ bool saveJsonData(SdFat32 &SD, const String &data) {
 
 
 
-String readDataFromSD(SdFat32 &SD, const char* fileName) {
-    if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
-        File32 file = SD.open(fileName, O_READ);
-        if (!file) {
-            Serial.println("Failed to open file for reading");
-            xSemaphoreGive(sdCardMutex);
-            return String();
-        }
+// String readDataFromSD(SdFat32 &SD, const char* fileName) {
+//     if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
+//         File32 file = SD.open(fileName, O_READ);
+//         if (!file) {
+//             Serial.println("Failed to open file for reading");
+//             xSemaphoreGive(sdCardMutex);
+//             return String();
+//         }
 
-        String data = file.readStringUntil('\n');
-        file.close();
-        xSemaphoreGive(sdCardMutex);
-        return data;
-    } else {
-        Serial.println("Failed to obtain SD Card mutex for reading.");
-        return String();
-    }
-}
+//         String data = file.readStringUntil('\n');
+//         file.close();
+//         xSemaphoreGive(sdCardMutex);
+//         return data;
+//     } else {
+//         Serial.println("Failed to obtain SD Card mutex for reading.");
+//         return String();
+//     }
+// }

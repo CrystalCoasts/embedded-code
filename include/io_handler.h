@@ -15,9 +15,6 @@
 // #include <base_surveyor.h>
 #include "DOSensor.h"
 
-
-
-
 struct SensorData {
     float humidity;
     bool humidityValid  = true;
@@ -38,13 +35,13 @@ struct SensorData {
 void readSensorData(SensorData& data);
 void validateSensorReadings(SensorData& data); 
 void printDataOnCLI(const SensorData& data);
-void uploadData(String jsonData);
+bool uploadData(String jsonData);
 
 /** file interactions **/
 
 //json
 String prepareJsonPayload(const SensorData& data);
-bool saveDataToJSONFile(SdFat32 &SD, const String &data);
+bool saveJsonData(SdFat32 &SD, const String &data);
 //csv
 String prepareCSVPayload(const SensorData& data);
 bool saveCSVData(SdFat32 &SD, const String& data);

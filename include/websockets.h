@@ -19,6 +19,7 @@ enum class ws_errors{
 class WebSocket {
 public:
     void init();
+    void stop();
     void begin();  // Now used to check if the WebSocket needs reconnection or other periodic checks
     static WebSocket& Get();
     void send_to_ws(String message);
