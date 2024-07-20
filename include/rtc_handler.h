@@ -5,6 +5,18 @@
 #include <time.h>
 
 
+/* MACROS FOR TIME UNITS */
+
+// Time units in milliseconds (for tasks)
+#define SECOND_MS (1000)
+#define MINUTE_MS (60 * SECOND_MS)
+#define HOUR_MS (60 * MINUTE_MS)
+
+// Time units in microseconds (for sleep modes)
+#define SECOND_US (1000000)
+#define MINUTE_US (60 * SECOND_US)
+#define HOUR_US (60 * MINUTE_US)
+
 
 
 
@@ -22,5 +34,7 @@ void printTime();
 uint8_t printLocalTime();
 
 void updateSystemTime(const struct tm& newTime);
+void saveTimerSettings(uint64_t userPowerOn);
+void loadTimerSettings();
 
 #endif

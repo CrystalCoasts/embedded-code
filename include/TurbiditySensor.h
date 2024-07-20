@@ -15,6 +15,8 @@ public:
     void begin();
     float calibrate();
     bool readTurbidity(float* turbidity);
+    void sleep();
+    void wakeup();
 
 private:
     static constexpr float VREF = 3.3;

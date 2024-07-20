@@ -1,9 +1,14 @@
 #include "io_handler.h"
 #include "rtc_handler.h"
 #include <HTTPClient.h>
+#include <WiFi.h>
 
-extern bool isConnected;
+// extern bool isConnected;
+
+extern SemaphoreHandle_t sdCardMutex;
+extern SemaphoreHandle_t sensorMutex;
 const char* DATA_URL = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.com/api/data";
+// const char* DATA_URL = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.com/api/test-data";
 
 // Define these in a suitable header file or at the top of your source file
 const char* KEY_HUMIDITY = "humidity";
@@ -20,21 +25,23 @@ const char* KEY_HOUR = "Hour";
 const char* KEY_MINUTE = "Minute";
 const char* KEY_SECOND = "Second";
 
+extern const char* JSON_DIR_PATH ;
+extern const char* CSV_DIR_PATH ;
+
 
 void readSensorData(SensorData &data)
 {
-    data.temperatureValid = temp.readTemperature(CELSIUS, &data.temperature);
+
+    Serial.println("Reading sensor data...");
+    data.temperatureValid = temp.readTemperature(FAHRENHEIT, &data.temperature);
     data.turbidityValid = tbdty.readTurbidity(&data.turbidity);
     data.salinityValid = sal.readSalinity(&data.salinity);
+    data.tdsValid = sal.readTDS(&data.tds);
     data.pHValid = phGloabl.readpH(&data.pH);
     data.oxygenLevelValid = DO.readDO(&data.oxygenLevel, data.salinity, data.temperature);
-    data.tdsValid = sal.readTDS(&data.tds);
     data.humidityValid = temp.readHumidity(&data.humidity);
 
 
-    // Increase frequency for DHT sensor
-    // setCpuFrequencyMhz(240);
-    // setCpuFrequencyMhz(80);  // Revert to low frequency after reading
 
     // Round readings
     data.temperature = round(data.temperature * 1000.0) / 1000.0;
@@ -44,25 +51,31 @@ void readSensorData(SensorData &data)
     data.oxygenLevel = round(data.oxygenLevel * 1000.0) / 1000.0;
     data.tds = round(data.tds * 1000.0) / 1000.0;
     data.humidity = round(data.humidity * 1000.0) / 1000.0;
+
+    Serial.println("Sensor readings complete.");
 }
 
 
-void uploadData(String jsonData) {
-    if (isConnected) {
-        Serial.println("Sending to Google.");
-        Serial.print(jsonData);
-        HTTPClient http;
-        http.begin(DATA_URL);
-        http.addHeader("Content-Type", "application/json");
-        int httpResponseCode = http.POST(jsonData);
-        http.end();
-    } else {
-        Serial.println("WiFi is not connected. Skipping data upload.");
+bool uploadData(String jsonData) {
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("Not connected to WiFi. Data not uploaded.");
+        return false;
     }
-}
-
-
-
+    Serial.println("Uploading: "+jsonData);    
+    HTTPClient http;
+    http.begin(DATA_URL);
+    http.addHeader("Content-Type", "application/json");
+    int httpResponseCode = http.POST(jsonData);
+    // if (httpResponseCode > 0) {
+    //     String response = http.getString();
+    //     Serial.println("HTTP Response code: " + String(httpResponseCode));
+    //     Serial.println(response);
+    // } else {
+    //     Serial.println("HTTP POST request failed.");
+    // }
+    http.end();
+    return (httpResponseCode == 200 || httpResponseCode == 201);
+} 
 
 void printDataOnCLI(const SensorData& data){
     String toPrint="";
@@ -132,66 +145,110 @@ String prepareCSVPayload(const SensorData& data)    {
         ":" + timeinfo.tm_min + ":" + timeinfo.tm_sec;   
 }
 
-void saveCSVData(SdFat32 &SD,String data)   {
-     struct tm timeinfo = get_current_time(); // Use value, not reference
-    Serial.println("Saving data to CSV file...");
-    File32 file;
+bool saveCSVData(SdFat32 &SD, const String& data) {
+    if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
+        struct tm timeinfo;
+        Serial.println("Saving data to CSV file...");
+        File32 file;
 
-    String filename;
-    if(!getLocalTime(&timeinfo))    {
-        filename = "/csvFiles/unknown-time.csv"; 
-    }else   {
-        filename = String("/csvFiles/") + (timeinfo.tm_mon+1) + '-' + timeinfo.tm_mday + '-' + (timeinfo.tm_year) + String("-data.csv"); 
-    }
-    if(!SD.open(filename, O_WRITE | O_APPEND))    {       //if cant open file to append/doesn't exist, create said file and write the headers
-        file = SD.open(filename, O_WRITE | O_CREAT);
-        String header = "Humidity, Temperature, Turbidity, Salinity, TDS, pH, Disolved Oxygen, Month, Day, Year, Hour";
-        file.println(header);
-    }else{
-        file = SD.open(filename, O_WRITE | O_APPEND);
-    }
-    if (file.println(data)) {
-        Serial.println("Data saved successfully.");
+        String directoryPath = CSV_DIR_PATH;
+        if (!SD.exists(directoryPath)) {
+            SD.mkdir(directoryPath);
+        }
+
+        String filename;
+        if (!getLocalTime(&timeinfo)) {
+            Serial.println("Failed to get local time.");
+            filename = directoryPath + "/unknown-time.csv";
+            // return false;
+        }
+
+        else {
+            filename = String(directoryPath) + "/" + (timeinfo.tm_mon+1) + '-' + timeinfo.tm_mday + '-' + (timeinfo.tm_year) + "-data.csv";
+        }    
+        
+        if(!SD.open(filename, O_WRITE | O_APPEND))    {       //if cant open file to append/doesn't exist, create said file and write the headers
+            file = SD.open(filename, O_WRITE | O_CREAT);
+            String header = "Humidity, Temperature, Turbidity, Salinity, TDS, pH, Disolved Oxygen, Month, Day, Year, Time";
+            file.println(header);
+        }
+        else{
+            file = SD.open(filename, O_WRITE | O_APPEND);
+        }
+        if (file.println(data)) {
+                Serial.println("Data saved successfully.");
+        } 
+        else {
+            Serial.println("Failed to save data.");
+        }
+        file.close();
+        xSemaphoreGive(sdCardMutex);
+        return true;
     } else {
-        Serial.println("Failed to save data.");
+        Serial.println("Failed to obtain SD Card mutex for writing.");
+        return false;
     }
-    file.close();
 }
 
 
-void saveDataToJSONFile(SdFat32&SD, String data) {
-    struct tm timeinfo = get_current_time();
-    Serial.println("Saving data to JSON file...");
-    Serial.println(data);
-    File32 file;
-    String filename;
-    if(!getLocalTime(&timeinfo))    {
-        filename = "/jsonFiles/unknown-time.json"; 
-    }else   {
-        filename = String("/jsonFiles/") + (timeinfo.tm_mon+1) + '-' + timeinfo.tm_mday + '-' + (timeinfo.tm_year) + String("-data.json"); 
-    }
-    file = SD.open(filename, O_WRITE | O_CREAT | O_APPEND);
-    if (file.println(data)) {
-        Serial.println("Data saved successfully.");
+
+
+bool saveJsonData(SdFat32 &SD, const String &data) {
+    if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
+        struct tm timeinfo;
+        Serial.println("Saving data to JSON file...");
+        Serial.println(data);
+        File32 file;
+
+        if (!getLocalTime(&timeinfo)) {
+            Serial.println("Failed to get local time.");
+            xSemaphoreGive(sdCardMutex);
+            return false;
+        }
+
+        String directoryPath = JSON_DIR_PATH;
+        if (!SD.exists(directoryPath)) {
+            SD.mkdir(directoryPath);
+        }
+
+        String filename = String(directoryPath) + "/" + (timeinfo.tm_mon + 1) + '-' + timeinfo.tm_mday + '-' + (timeinfo.tm_year + 1900) + "-data.json";
+        file = SD.open(filename, O_WRITE | O_CREAT | O_APPEND);
+        if (file) {
+            if (file.println(data)) {
+                Serial.println("Data saved successfully.");
+            } else {
+                Serial.println("Failed to save data.");
+            }
+            file.close();
+        } else {
+            Serial.println("Failed to open JSON file for writing.");
+        }
+        xSemaphoreGive(sdCardMutex);
+        return true;
     } else {
-        Serial.println("Failed to save data.");
+        Serial.println("Failed to obtain SD Card mutex for writing JSON.");
+        return false;
     }
-    file.close();
 }
 
 
 
-String readDataFromJSONFile() {
-    // File file = SPIFFS.open("/data.json");
-    // if (!file) {
-    //     Serial.println("There was an error opening the file for reading");
-    //     return "";
-    // }
-    // String data;
-    // while (file.available()) {
-    //     data += file.readStringUntil('\n') + "\n";
-    // }
-    // file.close();
-    // return data;
-    return " ";
-}
+
+// String readDataFromSD(SdFat32 &SD, const char* fileName) {
+//     if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
+//         File32 file = SD.open(fileName, O_READ);
+//         if (!file) {
+//             Serial.println("Failed to open file for reading");
+//             xSemaphoreGive(sdCardMutex);
+//             return String();
+//         }
+
+//         String data = file.readStringUntil('\n');
+//         file.close();
+//         xSemaphoreGive(sdCardMutex);
+//         return data;
+//     } else {
+//         Serial.println("Failed to obtain SD Card mutex for reading.");
+//         return String();
+//     }
+// }

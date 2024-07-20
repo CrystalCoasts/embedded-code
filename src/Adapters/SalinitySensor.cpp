@@ -60,16 +60,16 @@ void SalinitySensor::EnableDisableSingleReading(uint8_t readOption, uint8_t data
     switch (readOption) {
     case SAL:
         command += "S," + String(data);
-        msg = EC_TAG + String ("Salinity reading status changed");
-        // Serial.println(msg);
+        // msg = EC_TAG + String ("Salinity reading status changed");
+        Serial.println(msg);
         break;
     case EC:
         command += "EC," + String(data);
         break;
     case TDS:
         command += "TDS," + String(data);
-        msg = EC_TAG + String ("TDS status changed");
-        // Serial.println(msg);
+        // msg = EC_TAG + String ("TDS status changed");
+        Serial.println(msg);
         break;
     case SG:
         command += "SG," + String(data);
@@ -85,7 +85,10 @@ void SalinitySensor::EnableDisableSingleReading(uint8_t readOption, uint8_t data
 bool SalinitySensor::readSalinity(float* salinity) {
 
     //enable only salinity reading
-    DisableAllReadings();
+    EnableDisableSingleReading(EC, 0);
+    EnableDisableSingleReading(TDS, 0);
+    EnableDisableSingleReading(SG, 0);
+    EnableDisableSingleReading(SAL, 0);
     EnableDisableSingleReading(SAL, 1);
 
     // ec.send_cmd("O,?");
@@ -112,13 +115,16 @@ bool SalinitySensor::readSalinity(float* salinity) {
 
 bool SalinitySensor::readTDS(float* salinity){
     //enable only TDS reading
-    DisableAllReadings();
+    EnableDisableSingleReading(EC, 0);
+    EnableDisableSingleReading(TDS, 0);
+    EnableDisableSingleReading(SG, 0);
+    EnableDisableSingleReading(SAL, 0);
     EnableDisableSingleReading(TDS, 1);
 
     ec.send_cmd("R");
     delay(600);
     ec.receive_cmd(ec_data, sizeof(ec_data));
-
+    sleep();
     if (ec_data[0] != '\0') {
         *salinity = atof(ec_data);
         return true;
@@ -132,7 +138,7 @@ void SalinitySensor::DisableAllReadings() {
     ec.send_cmd("O,TDS,0");
     delay(500);
     ec.send_cmd("O,S,0");
-    // salFlag = false;
+    salFlag = false;
     delay(500);
     ec.send_cmd("O,SG,0");
     delay(500);
@@ -172,3 +178,9 @@ SalinitySensor& SalinitySensor::Get() {
 //         }
 //     }
 // }
+
+
+void SalinitySensor::sleep() {
+    ec.send_cmd("Sleep");
+    delay(300);
+}

@@ -5,24 +5,23 @@ pHSensor& phGloabl = pHSensor::Get();
 pHSensor::pHSensor() {};
 
 void pHSensor::begin()  {
-    pinMode(EN, OUTPUT);
-    digitalWrite(EN,HIGH);
     pH.begin();
+    pinMode(EN, OUTPUT);
+    wakeup();
 }
 
 bool pHSensor::readpH(float* pHValue) {
-    digitalWrite(EN,HIGH);
-    delay(1000);
+    wakeup();
     if(pHValue == nullptr)  {
         return false;
     }
+
+    
     float p = pH.read_ph();
     if(isnan(p))   {
         return false;
     }
-
-    digitalWrite(EN,LOW);
-
+    sleep();
     *pHValue = p;
     return pHValue;
 }
@@ -32,4 +31,12 @@ pHSensor& pHSensor::Get()    {
     return instance; 
 }
 
+void pHSensor::wakeup() {
+    digitalWrite(EN, HIGH);
+    delay(1000);
+}
+void pHSensor::sleep() {
+    digitalWrite(EN, LOW);
+    delay(1000);
+}
 
