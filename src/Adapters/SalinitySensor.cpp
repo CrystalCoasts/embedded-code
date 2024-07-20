@@ -124,7 +124,7 @@ bool SalinitySensor::readTDS(float* salinity){
     ec.send_cmd("R");
     delay(600);
     ec.receive_cmd(ec_data, sizeof(ec_data));
-    ec.send_cmd("Sleep");
+    sleep();
     if (ec_data[0] != '\0') {
         *salinity = atof(ec_data);
         return true;
@@ -178,3 +178,9 @@ SalinitySensor& SalinitySensor::Get() {
 //         }
 //     }
 // }
+
+
+void SalinitySensor::sleep() {
+    ec.send_cmd("Sleep");
+    delay(300);
+}

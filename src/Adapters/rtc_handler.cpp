@@ -94,7 +94,7 @@ void updateSystemTime(const struct tm& newTime) {
 
 void saveTimerSettings(uint64_t userPowerOn) {
     preferences.begin("my_timers", false); // Open NVS in read/write mode
-    Serial.println("Saving power on timer: "+ String(userPowerOn));
+    Serial.println("Saving user_power on timer: "+ String(userPowerOn));
     preferences.putInt("powerOnTimer", userPowerOn);
     preferences.end(); // Close NVS to save changes
 }
@@ -102,7 +102,7 @@ void saveTimerSettings(uint64_t userPowerOn) {
 void loadTimerSettings() {
     preferences.begin("my_timers", true); // Open NVS in read-only mode
     USER_POWER_ON = preferences.getInt("powerOnTimer", 5 * MINUTE_US); // default to 3 minutes if not set
-    Serial.println("Loaded power on timer: "+ String(USER_POWER_ON));
+    Serial.println("Loaded User power_on timer: "+ String(USER_POWER_ON));
     preferences.end(); // Close NVS after reading
 }
 

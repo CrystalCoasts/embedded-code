@@ -13,10 +13,13 @@ class pHSensor {
 public:
     static constexpr uint8_t EEPROM_VCLEAR_ADDRESS = 0;
     static constexpr uint8_t PIN = 35;
+    static constexpr uint8_t EN = 14;
 
     static pHSensor& Get();
     void begin();
     bool readpH(float* pHValue);
+    void sleep();
+    void wakeup();
 
 private:
 

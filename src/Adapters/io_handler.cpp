@@ -7,8 +7,8 @@
 
 extern SemaphoreHandle_t sdCardMutex;
 extern SemaphoreHandle_t sensorMutex;
-// const char* DATA_URL = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.com/api/data";
-const char* DATA_URL = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.com/api/test-data";
+const char* DATA_URL = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.com/api/data";
+// const char* DATA_URL = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.com/api/test-data";
 
 // Define these in a suitable header file or at the top of your source file
 const char* KEY_HUMIDITY = "humidity";

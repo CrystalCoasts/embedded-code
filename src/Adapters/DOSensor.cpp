@@ -65,6 +65,8 @@ bool DOSensor::readDO(float* DO, float salinity, float temp) {
     ec2.send_read_cmd();
     delay(600);
     ec2.receive_cmd(ec_data, sizeof(ec_data));
+    ec2.send_cmd("Sleep");
+    delay(300);
     // Serial.print("RAW salinity Read: ");
     // Serial.println(ec_data);
 

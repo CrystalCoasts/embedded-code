@@ -3,7 +3,13 @@
 #include "globals.h"
 #include "rtc_handler.h"
 
-const char* const WebSocket::WS_SERVER = "smart-seawall-server-staging-b61a03b529a6.herokuapp.com";
+// https://fullstack-web-app-11bd44d807f2.herokuapp.com/
+
+
+const char* const WebSocket::WS_SERVER = "fullstack-web-app-11bd44d807f2.herokuapp.com";
+// const char* const WebSocket::WS_SERVER = "smart-seawall-server-4c5cb6fd8f61.herokuapp.com";
+// const char* const WebSocket::WS_SERVER = "smart-seawall-server-staging-b61a03b529a6.herokuapp.com";
+
 const uint16_t WebSocket::WS_PORT = 80;
 const char* const WebSocket::WS_PATH = "/?clientType=esp32";
 String WEBSOCKET_TAG = "[WEB_SOCKET] ";
@@ -47,6 +53,7 @@ void WebSocket::webSocketTask(void * pvParameters) {
             continue;
         }
         self->webSocket.loop();
+        self->send_to_ws("AVAILABLE");
         vTaskDelay(pdMS_TO_TICKS(10)); // Lower delay to keep WebSocket loop responsive
     }
 }

@@ -27,14 +27,21 @@
 #define MAIN_TAG "[MAIN]"
 
 // FOR TESTING
+#define QUARTER_MINUTE_MS (MINUTE_MS / 4)
 #define HALF_MINUTE_US (MINUTE_US / 2)
 #define QUARTER_MINUTE_US (MINUTE_US / 4)
 #define HALF_MINUTE_MS (MINUTE_MS / 2)
 #define LED_PIN 2  
+#define BATTERY_PIN 27
 
 //instance declarations
 const char* SSID = "seawall";
 const char* PASSWD = "12345678";
+// const char* SSID = "RDF_Rapture";
+// const char* PASSWD = "WiFi4RDF*!";
+// IPAddress staticIP(192, 168, 254, 100); // Change this to your desired static IP
+// IPAddress gateway(192, 168, 50, 1);    // Router's IP address
+// IPAddress subnet(255, 255, 255, 0);   // Subnet mask
 SdFat32 SD;
 // Preferences preferences;
 
@@ -51,7 +58,7 @@ const char* CSV_DIR_PATH = "/csvFiles";
 const uint64_t SYSTEM_POWER_ON = 2 * MINUTE_US;
 volatile uint64_t USER_POWER_ON = 5 * MINUTE_US;
 
-uint64_t SYSTEM_POWER_OFF = 1 * MINUTE_MS;  
+uint64_t SYSTEM_POWER_OFF = 1* MINUTE_MS;  
 const uint64_t SENSOR_TASK_TIMER = HALF_MINUTE_MS; // 30 seconds, for tasks
 
 //tasks semaphores
@@ -86,6 +93,7 @@ void setup() {
     Serial.begin(115200);
 
     pinMode(LED_PIN, OUTPUT); 
+    pinMode(BATTERY_PIN, INPUT);
     
     Wire.begin(); // initialize early to ensure sensors can use it
 
@@ -143,7 +151,9 @@ void setup() {
 
 
 void loop() {
-//empty managed on tasks
+    // uint8_t batteryLevel = digitalRead(BATTERY_PIN);
+    // Serial.println("Battery Level: " + String(batteryLevel));
+    // delay(1000);
 }
 
 /* TASKS */
@@ -260,6 +270,9 @@ void powerOffSequence() {
     ws.stop();
 
     // Calculate next wakeup time and adjust USER_POWER_ON
+    // Serial.println(USER_POWER_ON);
+    // Serial.println(SYSTEM_POWER_ON);
+    // Serial.println((USER_POWER_ON < SYSTEM_POWER_ON));
     uint64_t power_on = (USER_POWER_ON < SYSTEM_POWER_ON) ? USER_POWER_ON : SYSTEM_POWER_ON;
     USER_POWER_ON = (USER_POWER_ON > SYSTEM_POWER_ON) ? (USER_POWER_ON - SYSTEM_POWER_ON) : UINT64_MAX;
     

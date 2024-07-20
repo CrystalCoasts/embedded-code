@@ -16,6 +16,8 @@ public:
     bool readSalinity(float* salinity);
     bool readTDS(float* salinity);
     void DisableAllReadings();
+    void sleep();
+    
 
 private:
     String ecName = "SAL";
