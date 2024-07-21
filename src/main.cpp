@@ -35,15 +35,14 @@
 #define BATTERY_PIN 27
 
 //instance declarations
-const char* SSID = "seawall";
-const char* PASSWD = "12345678";
+const char* SSID = "eero-wlan";
+const char* PASSWD = "Theknight17";
 // const char* SSID = "RDF_Rapture";
 // const char* PASSWD = "WiFi4RDF*!";
 // IPAddress staticIP(192, 168, 254, 100); // Change this to your desired static IP
 // IPAddress gateway(192, 168, 50, 1);    // Router's IP address
 // IPAddress subnet(255, 255, 255, 0);   // Subnet mask
 SdFat32 SD;
-// Preferences preferences;
 
 //status variables
 bool cardMount = false;
@@ -52,6 +51,17 @@ bool isConnected = false;
 // global variables
 const char* JSON_DIR_PATH = "/jsonFiles";
 const char* CSV_DIR_PATH = "/csvFiles";
+
+//battery values
+const uint16_t BATTERY_CHARGE = 10000; // 10000 mAh
+const uint8_t BATTERY_DRAW_SLEEP = 60; // 60 mA
+const uint8_t BATTERY_DRAW_ACTIVE = 180; // 180 mA
+
+// Global variables for battery management
+Preferences prefs;
+volatile uint16_t batteryLevel =BATTERY_CHARGE ; // Default battery level
+unsigned long lastUpdateTime = 0;
+
 
 //timers
 // volatile uint64_t powerOnTimer = (3600 * 1000) * 2;  // 2 hours
@@ -69,24 +79,26 @@ SemaphoreHandle_t sensorMutex;
 TimerHandle_t shutdownTimerHandle;
 TaskHandle_t TaskSensorHandle = NULL;
 TaskHandle_t TaskUploadDataHandle = NULL;
+TaskHandle_t TaskReadBatteryHandle = NULL;
 bool sensorTaskRunning = false;
 bool webSocketTaskRunning = false;
 bool uploadDataTaskRunning= false;
+bool batteryTaskRunning = false;
 
 //task functions and callbacks
 void sensorTask(void *pvParameters);
 void uploadTask(void *pvParameters);
-void wifiCheckTask(void *pvParameters);
+void readBatteryTask(void *pvParameters);
+
 void shutdownTimerCallback(TimerHandle_t xTimer) ; //callback
-void reconnectWiFi();
-void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info);
-void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info);
+
 
 //helper functions
 void startUploadTask();
 void stopUploadTask();
 void stopSensorTask();
 void powerOffSequence();
+
 
 void setup() {
     setCpuFrequencyMhz(80);
@@ -96,6 +108,13 @@ void setup() {
     pinMode(BATTERY_PIN, INPUT);
     
     Wire.begin(); // initialize early to ensure sensors can use it
+    // Initialize WiFi we need to continue even if wifi fails
+    WiFi.begin(SSID, PASSWD);
+    if (WiFi.status() == WL_CONNECTED){
+        String msg = SD_TAG + String (" WiFi connected");
+        Serial.println(msg);
+        isConnected = true;
+    }
 
     //setup spi 
     SPI.begin(18, 19, 23, 5);
@@ -122,25 +141,27 @@ void setup() {
         Serial.println(msg);
         cardMount = true;
     }  
-    // Initialize WiFi we need to continue even if wifi fails
-    WiFi.begin(SSID, PASSWD);
-    if (WiFi.status() == WL_CONNECTED){
-        String msg = SD_TAG + String (" WiFi connected");
-        Serial.println(msg);
-        isConnected = true;
-    }
+    
   
     //other system initializations
+
+    // Initialize NVS for battery level
+    prefs.begin("battery_storage");
+    batteryLevel = prefs.getUInt("batteryLevel", BATTERY_CHARGE); // Default to full charge if not set
+    prefs.end();
     rtc_begin();
     ws.init();
     // update user wakeup time USER_WAKEUP = (user_wakeup - SYSTEM_WAKEUP > 0 ) ? (user_wakeup - SYSTEM_WAKEUP ) : max uint64_t
 
     //create tasks and setup powerOff timer
-    xTaskCreate(sensorTask, "Sensor Task", 8192, NULL, 1, &TaskSensorHandle);
+    lastUpdateTime = millis(); // Set initial time for battery updates
+    xTaskCreate(readBatteryTask, "Battery Task", 2048, NULL, 1, &TaskReadBatteryHandle);
+    
+    // xTaskCreate(sensorTask, "Sensor Task", 8192, NULL, 1, &TaskSensorHandle);
     shutdownTimerHandle = xTimerCreate("ShutdownTimer", pdMS_TO_TICKS(SYSTEM_POWER_OFF), pdFALSE, (void*) 0, shutdownTimerCallback);
     xTimerStart(shutdownTimerHandle, 0);
     digitalWrite(LED_PIN, HIGH); 
-    startUploadTask();
+    // startUploadTask();
 
     printLocalTime();
 
@@ -263,6 +284,7 @@ void shutdownTimerCallback(TimerHandle_t xTimer) {
 /* HELPER FUNCTIONS */
 void powerOffSequence() {
     Serial.println("Powering off...");
+
     // Load settings, stop tasks, and prepare for shutdown
     loadTimerSettings();
     stopSensorTask();
@@ -270,16 +292,27 @@ void powerOffSequence() {
     ws.stop();
 
     // Calculate next wakeup time and adjust USER_POWER_ON
-    // Serial.println(USER_POWER_ON);
-    // Serial.println(SYSTEM_POWER_ON);
-    // Serial.println((USER_POWER_ON < SYSTEM_POWER_ON));
     uint64_t power_on = (USER_POWER_ON < SYSTEM_POWER_ON) ? USER_POWER_ON : SYSTEM_POWER_ON;
     USER_POWER_ON = (USER_POWER_ON > SYSTEM_POWER_ON) ? (USER_POWER_ON - SYSTEM_POWER_ON) : UINT64_MAX;
     
-    // Save settings and power off
-    saveTimerSettings(USER_POWER_ON);
+    // Set the wakeup timer before calculating sleep battery consumption
     esp_sleep_enable_timer_wakeup(power_on);
+
+    // Calculate the battery consumed during sleep based on the power_on time
+    unsigned long sleepTimeMs = power_on / 1000; // Convert from microseconds to milliseconds
+    uint16_t sleepConsumption = (BATTERY_DRAW_SLEEP * sleepTimeMs / 3600000.0); // Convert ms to hours
+    batteryLevel = max(0, batteryLevel - sleepConsumption);
+
+    // Save the updated battery level to NVS
+    prefs.begin("battery_storage", false);
+    prefs.putUInt("batteryLevel", batteryLevel);
+    prefs.end();
+
+    // Save the timer settings to NVS using rtc_handler's namespace
+    saveTimerSettings(USER_POWER_ON);
+
     digitalWrite(LED_PIN, LOW);
+    Serial.println("Entering deep sleep...");
     esp_deep_sleep_start();
 }
 
@@ -304,3 +337,28 @@ void stopSensorTask() {
     }
 }
 
+void readBatteryTask(void *pvParameters) {
+    const uint64_t updateIntervalMs = 60000; // 60 seconds
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    lastUpdateTime = millis(); 
+
+    while (true) {
+        unsigned long currentTime = millis();
+        unsigned long elapsedTime = currentTime - lastUpdateTime; // Calculate time since last update
+
+        if (elapsedTime >= updateIntervalMs) {
+            // Calculate power consumption during active time
+            uint16_t powerConsumed = (BATTERY_DRAW_ACTIVE * elapsedTime / 3600000.0); // Convert ms to hours and calculate
+            batteryLevel = max(0, batteryLevel - powerConsumed);
+
+            prefs.begin("battery_storage", false);
+            prefs.putUInt("batteryLevel", batteryLevel);
+            prefs.end();
+
+            // Calculate battery percentage for display or reporting
+            int batteryPercentage = (batteryLevel * 100) / BATTERY_CHARGE;
+            lastUpdateTime = currentTime;
+        }
+        vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(updateIntervalMs));
+    }
+}
