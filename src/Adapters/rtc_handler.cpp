@@ -3,7 +3,7 @@
 #include "NTPClient.h"
 #include "globals.h"
 
-Preferences preferences;
+// Preferences preferences;
 
 
 String RTC_TAG ="[RTC_TAG] ";
@@ -93,17 +93,17 @@ void updateSystemTime(const struct tm& newTime) {
 }
 
 void saveTimerSettings(uint64_t userPowerOn) {
-    preferences.begin("my_timers", false); // Open NVS in read/write mode
+    prefs.begin("my_timers", false); // Open NVS in read/write mode
     Serial.println("Saving user_power on timer: "+ String(userPowerOn));
-    preferences.putInt("powerOnTimer", userPowerOn);
-    preferences.end(); // Close NVS to save changes
+    prefs.putInt("powerOnTimer", userPowerOn);
+    prefs.end(); // Close NVS to save changes
 }
 
 void loadTimerSettings() {
-    preferences.begin("my_timers", true); // Open NVS in read-only mode
-    USER_POWER_ON = preferences.getInt("powerOnTimer", 5 * MINUTE_US); // default to 3 minutes if not set
+    prefs.begin("my_timers", true); // Open NVS in read-only mode
+    USER_POWER_ON = prefs.getInt("powerOnTimer", 5 * MINUTE_US); // default to 3 minutes if not set
     Serial.println("Loaded User power_on timer: "+ String(USER_POWER_ON));
-    preferences.end(); // Close NVS after reading
+    prefs.end(); // Close NVS after reading
 }
 
 
