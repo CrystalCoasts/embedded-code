@@ -1,357 +1,256 @@
-#include <Arduino.h>
-#include <WiFi.h>
-#include <ArduinoJson.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-#include <freertos/semphr.h>
-#include <Preferences.h>
-#include <esp_sleep.h>
+#include "WebSockets.h"
+#include "io_handler.h"
+#include "globals.h"
+#include "rtc_handler.h"
+
+// https://fullstack-web-app-11bd44d807f2.herokuapp.com/
 
 
+// const char* const WebSocket::WS_SERVER = "fullstack-web-app-11bd44d807f2.herokuapp.com";
+// const char* const WebSocket::WS_SERVER = "smart-seawall-server-4c5cb6fd8f61.herokuapp.com";
+// const char* const WebSocket::WS_SERVER = "smart-seawall-server-staging-b61a03b529a6.herokuapp.com";
+const char* const WebSocket::WS_SERVER = "smart-seawall-7e55bb53fed1.herokuapp.com";
 
-// Sensor headers
-#include "TempSensor.h"
-#include "TurbiditySensor.h"
-#include "SalinitySensor.h"
-#include "pHSensor.h"
+const uint16_t WebSocket::WS_PORT = 80;
+const char* const WebSocket::WS_PATH = "/?clientType=esp32";
+String WEBSOCKET_TAG = "[WEB_SOCKET] ";
 
-//helpers
-#include "io_handler.h" //this includes SdFat32
-#include "rtc_handler.h" // includes ntp related headers
-#include "websockets.h"
-
-// error tags
-#define SD_TAG "[SD_CARD]"
-#define WIFI_TAG "[WIFI]"
-#define SENSOR_TAG "[SENSORS]"
-#define MAIN_TAG "[MAIN]"
-
-// FOR TESTING
-#define QUARTER_MINUTE_MS (MINUTE_MS / 4)
-#define HALF_MINUTE_US (MINUTE_US / 2)
-#define QUARTER_MINUTE_US (MINUTE_US / 4)
-#define HALF_MINUTE_MS (MINUTE_MS / 2)
-#define LED_PIN 2  
-
-//instance declarations
-const char* SSID = "seawall";
-const char* PASSWD = "12345678";
-
-SdFat32 SD;
-
-//status variables
-bool cardMount = false;
-bool isConnected = false;
-
-// global variables
-const char* JSON_DIR_PATH = "/jsonFiles";
-const char* CSV_DIR_PATH = "/csvFiles";
-
-//battery values
-const uint16_t BATTERY_CHARGE = 10000; // 10000 mAh
-const uint8_t BATTERY_DRAW_SLEEP = 60; // 60 mA
-const uint8_t BATTERY_DRAW_ACTIVE = 180; // 180 mA
-
-// Global variables for battery management
-Preferences prefs;
-volatile uint16_t batteryLevel =BATTERY_CHARGE ; // Default battery level
-unsigned long lastUpdateTime = 0;
+// extern SemaphoreHandle_t sdCardMutex;
+// extern SemaphoreHandle_t sensorMutex;
+extern TimerHandle_t shutdownTimerHandle;
+extern uint16_t batteryLevel;
+const uint16_t FULL_BATTERY_CHARGE = 10000; // 10000 mAh
 
 
-//timers
-// volatile uint64_t powerOnTimer = (3600 * 1000) * 2;  // 2 hours
-const uint64_t SYSTEM_POWER_ON = 2 * MINUTE_US;
-volatile uint64_t USER_POWER_ON = 5 * MINUTE_US;
+WebSocket& ws = WebSocket::Get(); 
 
-uint64_t SYSTEM_POWER_OFF = 1* MINUTE_MS;  
-const uint64_t SENSOR_TASK_TIMER = HALF_MINUTE_MS; // 30 seconds, for tasks
+WebSocket& WebSocket::Get() {
+    static WebSocket instance;
+    return instance;
+}
 
-//tasks semaphores
-SemaphoreHandle_t sdCardMutex;
-SemaphoreHandle_t sensorMutex;
+WebSocket::WebSocket() {
+    // Private constructor
+}
 
-//handlers and running status
-TimerHandle_t shutdownTimerHandle;
-TaskHandle_t TaskSensorHandle = NULL;
-TaskHandle_t TaskUploadDataHandle = NULL;
-TaskHandle_t TaskReadBatteryHandle = NULL;
-bool sensorTaskRunning = false;
-bool webSocketTaskRunning = false;
-bool uploadDataTaskRunning= false;
-bool batteryTaskRunning = false;
+void WebSocket::init() {
+    xTaskCreate(webSocketTask, "WebSocketTask", 8192, this, 1, &webSocketTaskHandle);
+}
 
-//task functions and callbacks
-void sensorTask(void *pvParameters);
-void uploadTask(void *pvParameters);
-void readBatteryTask(void *pvParameters);
-
-void shutdownTimerCallback(TimerHandle_t xTimer) ; //callback
-
-
-//helper functions
-void startUploadTask();
-void stopUploadTask();
-void stopSensorTask();
-void powerOffSequence();
-
-
-void setup() {
-    setCpuFrequencyMhz(80);
-    Serial.begin(115200);
-
-    pinMode(LED_PIN, OUTPUT); 
-    pinMode(BATTERY_PIN, INPUT);
-    
-    Wire.begin(); // initialize early to ensure sensors can use it
-    // Initialize WiFi we need to continue even if wifi fails
-    WiFi.begin(SSID, PASSWD);
-    if (WiFi.status() == WL_CONNECTED){
-        String msg = SD_TAG + String (" WiFi connected");
-        Serial.println(msg);
-        isConnected = true;
-    }
-
-    //setup spi 
-    SPI.begin(18, 19, 23, 5);
-    SPI.setDataMode(SPI_MODE0);
-
-    // Initialize sensors before wifi
-    temp.begin();
-    tbdty.begin();
-    phGloabl.begin();
-    DO.begin();
-    sal.begin(); //also tds
-
-    // Create mutexes
-    sdCardMutex = xSemaphoreCreateMutex();
-    sensorMutex = xSemaphoreCreateMutex();
-    
-    // Initialize SD card
-    if(!SD.begin(SdSpiConfig(5, SHARED_SPI, SD_SCK_MHZ(16)))){
-        String msg = SD_TAG + String (" Card Mount Failed");
-        Serial.println(msg);
-    }
-    else  {
-        String msg = SD_TAG + String (" Card mount sucessful!");
-        Serial.println(msg);
-        cardMount = true;
-    }  
-    
-  
-    //other system initializations
-
-    // Initialize NVS for battery level
-    prefs.begin("battery_storage");
-    batteryLevel = prefs.getUInt("batteryLevel", BATTERY_CHARGE); // Default to full charge if not set
-    prefs.end();
-    rtc_begin();
-    ws.init();
-    // update user wakeup time USER_WAKEUP = (user_wakeup - SYSTEM_WAKEUP > 0 ) ? (user_wakeup - SYSTEM_WAKEUP ) : max uint64_t
-
-    //create tasks and setup powerOff timer
-    lastUpdateTime = millis(); // Set initial time for battery updates
-    xTaskCreate(readBatteryTask, "Battery Task", 2048, NULL, 1, &TaskReadBatteryHandle);
-    
-    xTaskCreate(sensorTask, "Sensor Task", 8192, NULL, 1, &TaskSensorHandle);
-    shutdownTimerHandle = xTimerCreate("ShutdownTimer", pdMS_TO_TICKS(SYSTEM_POWER_OFF), pdFALSE, (void*) 0, shutdownTimerCallback);
-    xTimerStart(shutdownTimerHandle, 0);
-    digitalWrite(LED_PIN, HIGH); 
-    startUploadTask();
-
-    printLocalTime();
-
-    String msg = MAIN_TAG + String (" Setup done");
-    Serial.println(msg);
+void WebSocket::stop() {
+    webSocket.disconnect();
+    vTaskDelete(webSocketTaskHandle); // Ensure the task is stopped if running
+    Serial.println(WEBSOCKET_TAG + " WebSocket stopped.");
 }
 
 
-
-void loop() {
-
-}
-
-/* TASKS */
-void sensorTask(void *pvParameters) {
-    sensorTaskRunning = true;
-    while (sensorTaskRunning) {
-        Serial.println("[TASKS] Sensor task running");
-        SensorData data;
-        readSensorData(data);
-        printDataOnCLI(data);
-        
-        if (!saveCSVData(SD, prepareCSVPayload(data))) {
-            Serial.println("[TASKS] Failed to save CSV data.");
-        }
-        if (!saveJsonData(SD, prepareJsonPayload(data))) {
-            Serial.println("[TASKS] Failed to save JSON data.");
-        }
-
-        Serial.println("[TASKS] Sensor task sleeping");
-        vTaskDelay(pdMS_TO_TICKS(SENSOR_TASK_TIMER));  // Delay the task for SENSOR_TASK_TIMER seconds
-    }
-    // Clean up or prepare to delete task
-    sensorTaskRunning = false;
-    vTaskDelete(NULL); // Optionally delete the task explicitly
-}
-
-void uploadTask(void *pvParameters) {
-    for (;;) {
-        if (WiFi.status() != WL_CONNECTED) {
-            Serial.println("WiFi not connected. Skipping upload.");
-            vTaskDelay(pdMS_TO_TICKS(5000)); // Delay before next execution cycle
-            continue;
-        }
-
-        SdFile root, file;
-        if (!root.open(JSON_DIR_PATH, O_READ)) {
-            Serial.println("Failed to open directory");
-            vTaskDelay(pdMS_TO_TICKS(10000)); // Wait for 10 seconds before retrying
-            continue;
-        }
-
-        char fileName[100];
-        while (file.openNext(&root, O_READ)) {
-            if (file.isDir()) {
-                file.close();
-                continue;
-            }
-
-            file.getName(fileName, sizeof(fileName));
-            if (String(fileName).startsWith(".") || !String(fileName).endsWith(".json")) {
-                file.close();
-                file.remove();
-                continue;
-            }
-
-            bool allLinesUploaded = true;
-            String jsonLine;
-            char ch;
-            while (file.available()) {
-                ch = file.read();
-                if (ch == '\n' || !file.available()) {
-                    if (!jsonLine.isEmpty()) {
-                        jsonLine.trim();
-                        if (!uploadData(jsonLine)) {
-                            Serial.println("Failed to upload: " + jsonLine);
-                            allLinesUploaded = false;
-                            break;
-                        }
-                        jsonLine = ""; // Reset the line buffer
-                    }
-                } else {
-                    jsonLine += ch;
-                }
-            }
-
-            file.close();
-            if (allLinesUploaded) {
-                SD.remove(String(JSON_DIR_PATH) + "/" + String(fileName)); // Ensure the path is correct
-                Serial.println(String(fileName) + " uploaded and deleted successfully.");
-            } else {
-                Serial.println("Not all lines in the file were uploaded successfully.");
-            }
-        }
-        root.close();
-        vTaskDelay(pdMS_TO_TICKS(10000)); // Delay before next execution cycle
-    }
-}
-
-
-
-/* SYSTEM CALLBACKS */
-// Timer callback function
-void shutdownTimerCallback(TimerHandle_t xTimer) {
-    Serial.println("Power-off timer expired. Checking active connection.");
-    if (WiFi.status() == WL_CONNECTED) {
-        // If connected, reset the timer
-        Serial.println("Active WiFi connection detected. Resetting power-off timer.");
-        xTimerReset(shutdownTimerHandle, 0);  // Reset the timer to delay shutdown
-    } else {
-        // No active connection, proceed to power off
-        Serial.println("No active connection. Initiating shutdown sequence.");
-        powerOffSequence();
-    }
-}
-
-
-/* HELPER FUNCTIONS */
-void powerOffSequence() {
-    Serial.println("Powering off...");
-
-    // Load settings, stop tasks, and prepare for shutdown
-    loadTimerSettings();
-    stopSensorTask();
-    stopUploadTask();
-    ws.stop();
-
-    // Calculate next wakeup time and adjust USER_POWER_ON
-    uint64_t power_on = (USER_POWER_ON < SYSTEM_POWER_ON) ? USER_POWER_ON : SYSTEM_POWER_ON;
-    USER_POWER_ON = (USER_POWER_ON > SYSTEM_POWER_ON) ? (USER_POWER_ON - SYSTEM_POWER_ON) : UINT64_MAX;
-    
-    // Set the wakeup timer before calculating sleep battery consumption
-    esp_sleep_enable_timer_wakeup(power_on);
-
-    // Calculate the battery consumed during sleep based on the power_on time
-    unsigned long sleepTimeMs = power_on / 1000; // Convert from microseconds to milliseconds
-    uint16_t sleepConsumption = (BATTERY_DRAW_SLEEP * sleepTimeMs / 3600000.0); // Convert ms to hours
-    batteryLevel = max(0, batteryLevel - sleepConsumption);
-
-    // Save the updated battery level to NVS
-    prefs.begin("battery_storage", false);
-    prefs.putUInt("batteryLevel", batteryLevel);
-    prefs.end();
-
-    // Save the timer settings to NVS using rtc_handler's namespace
-    saveTimerSettings(USER_POWER_ON);
-
-    digitalWrite(LED_PIN, LOW);
-    Serial.println("Entering deep sleep...");
-    esp_deep_sleep_start();
-}
-
-void startUploadTask() {
-    if (TaskUploadDataHandle == NULL) {
-        xTaskCreate(uploadTask, "UploadData", 8192, NULL, 1, &TaskUploadDataHandle);
-        uploadDataTaskRunning = true;
-    }
-}
-
-void stopUploadTask() {
-    if (TaskUploadDataHandle != NULL) {
-        vTaskDelete(TaskUploadDataHandle);
-        uploadDataTaskRunning = false;
-        TaskUploadDataHandle = NULL;
-    }
-}
-
-void stopSensorTask() {
-    if (sensorTaskRunning) {
-        sensorTaskRunning = false; // This will cause the task to exit its loop and clean up
-    }
-}
-
-void readBatteryTask(void *pvParameters) {
-    const uint64_t updateIntervalMs = 60000; // 60 seconds
-    TickType_t xLastWakeTime = xTaskGetTickCount();
-    lastUpdateTime = millis(); 
+void WebSocket::webSocketTask(void * pvParameters) {
+    WebSocket *self = static_cast<WebSocket*>(pvParameters);
+    self->webSocket.begin(WS_SERVER, WS_PORT, WS_PATH);
+    self->webSocket.onEvent(webSocketEvent);
+    self->webSocket.setReconnectInterval(5000);
 
     while (true) {
-        unsigned long currentTime = millis();
-        unsigned long elapsedTime = currentTime - lastUpdateTime; // Calculate time since last update
 
-        if (elapsedTime >= updateIntervalMs) {
-            // Calculate power consumption during active time
-            uint16_t powerConsumed = (BATTERY_DRAW_ACTIVE * elapsedTime / 3600000.0); // Convert ms to hours and calculate
-            batteryLevel = max(0, batteryLevel - powerConsumed);
-
-            prefs.begin("battery_storage", false);
-            prefs.putUInt("batteryLevel", batteryLevel);
-            prefs.end();
-
-            // Calculate battery percentage for display or reporting
-            int batteryPercentage = (batteryLevel * 100) / BATTERY_CHARGE;
-            lastUpdateTime = currentTime;
+        // self->send_to_ws("AVAILABLE");
+        // delay(10*1000); // for testing one message every 10 seconds
+        if(WiFi.status() != WL_CONNECTED) {
+            Serial.println("WiFi not connected. Skipping ws loop.");
+            vTaskDelay(pdMS_TO_TICKS(10000)); // Delay before next execution cycle
+            continue;
         }
-        vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(updateIntervalMs));
+        self->webSocket.loop();
+        vTaskDelay(pdMS_TO_TICKS(10)); // Lower delay to keep WebSocket loop responsive
     }
+}
+
+void WebSocket::webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
+    WebSocket& ws = Get();
+    Serial.print(WEBSOCKET_TAG + " Event type: ");
+    Serial.println(type);
+    switch(type) {
+        case WStype_DISCONNECTED:
+            Serial.println(WEBSOCKET_TAG + " Disconnected");
+            break;
+        case WStype_CONNECTED:
+            Serial.println(WEBSOCKET_TAG + " Connected!");
+            break;
+        case WStype_TEXT:
+            Serial.print(WEBSOCKET_TAG + " Text Message: ");
+            for(size_t i = 0; i < length; i++) {
+                Serial.print((char) payload[i]);
+            }
+            Serial.println();
+            ws.processPayload(payload, length);
+            break;
+        case WStype_BIN:
+            Serial.print(WEBSOCKET_TAG + " Binary data received, length: ");
+            Serial.println(length);
+            Serial.print(WEBSOCKET_TAG + " Data: ");
+            for(size_t i = 0; i < length; i++) {
+                Serial.print(payload[i], HEX); // Print in hexadecimal format
+                Serial.print(" ");
+            }
+            Serial.println();
+            ws.processBinaryPayload(payload, length);
+            break;
+        default:
+            Serial.println(WEBSOCKET_TAG + " Unknown event type");
+            break;
+    }
+}
+
+void WebSocket::processBinaryPayload(uint8_t * payload, size_t length) {
+    // Convert binary payload to a String
+    String payloadString = String((char*)payload, length);
+    
+    // Print or log the payload for debugging
+    Serial.println(WEBSOCKET_TAG + " Processing binary payload");
+    Serial.print(WEBSOCKET_TAG + " Binary payload as string: ");
+    Serial.println(payloadString);
+    
+    // Parse the command and data
+    String command;
+    String data;
+    int spaceIndex = payloadString.indexOf(' ');
+    
+    if (spaceIndex != -1) {
+        // Extract command and data
+        command = payloadString.substring(0, spaceIndex);
+        data = payloadString.substring(spaceIndex + 1);
+    } else {
+        // No space found, the payload is just the command
+        command = payloadString;
+        data = ""; // No data provided
+    }
+    
+    // Handle the command with its associated data
+    handleCommand(command, data);
+}
+
+
+
+
+void WebSocket::send_to_ws(String message)
+{
+    webSocket.sendTXT(message);
+    // delay(300);
+}
+
+uint8_t WebSocket::processPayload(uint8_t * payload, size_t length) {
+    // Convert uint8_t * to String
+    String payloadString = String((char *)payload);
+
+    // Find the position of the first space
+    int spaceIndex = payloadString.indexOf(' ');
+
+    if (spaceIndex != -1) {
+        // Extract the command and data
+        String command = payloadString.substring(0, spaceIndex);
+        String data = payloadString.substring(spaceIndex + 1);
+
+        // Handle the command based on its value
+        handleCommand(command, data);
+    } else {
+        // No space found, handle as necessary (assuming payload is just the command)
+        handleCommand(payloadString, "");
+    }
+
+    return 0;
+}
+
+uint8_t WebSocket::handleCommand(String command, String data) {
+    String msg;
+    // Process the command
+    if (command.equals("read")) 
+        return handleReadCommand(data);
+        
+    else if (command.equals("updt")) 
+        // Handle "write" command
+       return handleUpdateCommand(data);
+
+    else if (command.equals("reset")) {
+        return handleResetCommand();
+    }
+    
+    else {
+        // Unknown command
+        msg = WEBSOCKET_TAG + " Unknown command:" + command;
+        Serial.println(msg);
+        return (uint8_t)ws_errors::EMPTY_STR;
+    }
+
+    return 0;
+}
+
+uint8_t WebSocket::handleReadCommand(String cmd_data)
+{
+    String msg;
+    msg = String(WEBSOCKET_TAG + "Handling read command with data: "+ cmd_data);
+    Serial.println(msg);
+
+        msg = "[WEB_SOCKET] Handling read command with data: " + cmd_data;
+        Serial.println(msg);
+        ws.send_to_ws("Read " + cmd_data + " received");
+
+        if (cmd_data.equals("sensors")) {
+            Serial.println("[WEB_SOCKET] Reading sensor data");
+            SensorData data;
+            readSensorData(data);
+            String jsonPayload = prepareJsonPayload(data);
+            uploadData(jsonPayload);
+            ws.send_to_ws("Data uploaded");
+        }
+    
+
+       else if (cmd_data.equals("bat")) 
+       {
+            // Read the current battery level and convert it to a percentage
+            int batteryPercent = (batteryLevel * 100) / FULL_BATTERY_CHARGE; // Assuming batteryLevel is always up to date
+            msg = "Battery: " + String(batteryPercent) + "%";
+            ws.send_to_ws(msg);
+       }
+
+    return 0;
+}
+
+
+
+uint8_t WebSocket::handleUpdateCommand(String cmd_data)
+{
+    String msg;
+    msg = String(WEBSOCKET_TAG + "Handling schedule command with data: " + cmd_data);
+    Serial.println(msg);
+
+    // Check if the command data is a valid number and not empty
+    if (cmd_data.length() == 0 || !cmd_data.toInt()) {
+        ws.send_to_ws("Error: Invalid timer value. Command ignored.");
+        return 1; // Return an error code or similar
+    }
+
+    uint64_t minutes = cmd_data.toInt(); // Convert string to integer
+    if (minutes <= 0) {
+        ws.send_to_ws("Error: Timer value must be greater than zero. Command ignored.");
+        return 1;
+    }
+
+    uint64_t microseconds = minutes * MINUTE_US; // Convert minutes to microseconds using macro
+    saveTimerSettings(microseconds);
+
+    String ack = "Schedule wakeup in " + cmd_data + " minutes command received and set.";
+    ws.send_to_ws(ack);
+    ws.send_to_ws("Wake up scheduled");
+
+    return 0; // Success
+}
+
+
+uint8_t WebSocket::handleResetCommand() {
+    Serial.println(WEBSOCKET_TAG + " Reset command received. Initiating system restart.");
+    ws.send_to_ws("System is restarting...");
+
+    // Trigger a software reset
+    esp_restart();
+
+    return 0; // Success code, though it won't really matter as the system will restart.
 }

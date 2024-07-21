@@ -41,11 +41,13 @@ private:
     static const char* const WS_PATH;
 
     uint8_t processPayload(uint8_t * payload, size_t length);
+    void processBinaryPayload(uint8_t * payload, size_t length);
     uint8_t handleCommand(String command, String data);
 
     // Individual command handlers
     uint8_t handleReadCommand(String data);
     uint8_t handleUpdateCommand(String data);
+    uint8_t handleResetCommand();
 };
 
 extern WebSocket& ws;  // Global WebSocket instance
