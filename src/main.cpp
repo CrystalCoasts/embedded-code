@@ -99,9 +99,6 @@ void powerOffSequence();
 void setup() {
     setCpuFrequencyMhz(80);
     Serial.begin(115200);
-
-    pinMode(LED_PIN, OUTPUT); 
-    pinMode(BATTERY_PIN, INPUT);
     
     Wire.begin(); // initialize early to ensure sensors can use it
     // Initialize WiFi we need to continue even if wifi fails
@@ -147,16 +144,13 @@ void setup() {
     prefs.end();
     rtc_begin();
     ws.init();
-    // update user wakeup time USER_WAKEUP = (user_wakeup - SYSTEM_WAKEUP > 0 ) ? (user_wakeup - SYSTEM_WAKEUP ) : max uint64_t
 
     //create tasks and setup powerOff timer
     lastUpdateTime = millis(); // Set initial time for battery updates
     xTaskCreate(readBatteryTask, "Battery Task", 2048, NULL, 1, &TaskReadBatteryHandle);
-    
     xTaskCreate(sensorTask, "Sensor Task", 8192, NULL, 1, &TaskSensorHandle);
     shutdownTimerHandle = xTimerCreate("ShutdownTimer", pdMS_TO_TICKS(SYSTEM_POWER_OFF), pdFALSE, (void*) 0, shutdownTimerCallback);
     xTimerStart(shutdownTimerHandle, 0);
-    digitalWrite(LED_PIN, HIGH); 
     startUploadTask();
 
     printLocalTime();
@@ -306,8 +300,6 @@ void powerOffSequence() {
 
     // Save the timer settings to NVS using rtc_handler's namespace
     saveTimerSettings(USER_POWER_ON);
-
-    digitalWrite(LED_PIN, LOW);
     Serial.println("Entering deep sleep...");
     esp_deep_sleep_start();
 }
