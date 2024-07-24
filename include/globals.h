@@ -14,7 +14,7 @@ extern const char* JSON_DIR_PATH;
 extern const char* CSV_DIR_PATH;
 
 // Battery Management
-extern const uint16_t BATTERY_CHARGE;
+// extern const uint16_t BATTERY_CHARGE;
 extern Preferences prefs;
 
 #endif

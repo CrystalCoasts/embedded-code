@@ -6,10 +6,10 @@
 // https://fullstack-web-app-11bd44d807f2.herokuapp.com/
 
 
-// const char* const WebSocket::WS_SERVER = "fullstack-web-app-11bd44d807f2.herokuapp.com";
+const char* const WebSocket::WS_SERVER = "fullstack-web-app-11bd44d807f2.herokuapp.com";
 // const char* const WebSocket::WS_SERVER = "smart-seawall-server-4c5cb6fd8f61.herokuapp.com";
 // const char* const WebSocket::WS_SERVER = "smart-seawall-server-staging-b61a03b529a6.herokuapp.com";
-const char* const WebSocket::WS_SERVER = "smart-seawall-7e55bb53fed1.herokuapp.com";
+// const char* const WebSocket::WS_SERVER = "smart-seawall-7e55bb53fed1.herokuapp.com";
 
 const uint16_t WebSocket::WS_PORT = 80;
 const char* const WebSocket::WS_PATH = "/?clientType=esp32";
@@ -169,7 +169,9 @@ uint8_t WebSocket::handleCommand(String command, String data) {
         // Handle "write" command
        return handleUpdateCommand(data);
 
-    
+    else if (command.equals("reset")) {
+        return handleResetCommand();
+    }
     
     else {
         // Unknown command
@@ -240,4 +242,15 @@ uint8_t WebSocket::handleUpdateCommand(String cmd_data)
     ws.send_to_ws("Wake up scheduled");
 
     return 0; // Success
+}
+
+
+uint8_t WebSocket::handleResetCommand() {
+    Serial.println(WEBSOCKET_TAG + " Reset command received. Initiating system restart.");
+    ws.send_to_ws("System is restarting...");
+
+    // Trigger a software reset
+    esp_restart();
+
+    return 0; // Success code, though it won't really matter as the system will restart.
 }

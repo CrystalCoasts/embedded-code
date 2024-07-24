@@ -35,13 +35,9 @@
 #define BATTERY_PIN 27
 
 //instance declarations
-const char* SSID = "eero-wlan";
-const char* PASSWD = "Theknight17";
-// const char* SSID = "RDF_Rapture";
-// const char* PASSWD = "WiFi4RDF*!";
-// IPAddress staticIP(192, 168, 254, 100); // Change this to your desired static IP
-// IPAddress gateway(192, 168, 50, 1);    // Router's IP address
-// IPAddress subnet(255, 255, 255, 0);   // Subnet mask
+const char* SSID = "seawall";
+const char* PASSWD = "12345678";
+
 SdFat32 SD;
 
 //status variables
@@ -65,10 +61,10 @@ unsigned long lastUpdateTime = 0;
 
 //timers
 // volatile uint64_t powerOnTimer = (3600 * 1000) * 2;  // 2 hours
-const uint64_t SYSTEM_POWER_ON = 2 * MINUTE_US;
-volatile uint64_t USER_POWER_ON = 5 * MINUTE_US;
+const uint64_t SYSTEM_POWER_ON = 2 * HOUR_US;
+volatile uint64_t USER_POWER_ON = 5 * HOUR_US;
 
-uint64_t SYSTEM_POWER_OFF = 1* MINUTE_MS;  
+uint64_t SYSTEM_POWER_OFF = 5* MINUTE_MS;  
 const uint64_t SENSOR_TASK_TIMER = HALF_MINUTE_MS; // 30 seconds, for tasks
 
 //tasks semaphores
@@ -157,11 +153,11 @@ void setup() {
     lastUpdateTime = millis(); // Set initial time for battery updates
     xTaskCreate(readBatteryTask, "Battery Task", 2048, NULL, 1, &TaskReadBatteryHandle);
     
-    // xTaskCreate(sensorTask, "Sensor Task", 8192, NULL, 1, &TaskSensorHandle);
+    xTaskCreate(sensorTask, "Sensor Task", 8192, NULL, 1, &TaskSensorHandle);
     shutdownTimerHandle = xTimerCreate("ShutdownTimer", pdMS_TO_TICKS(SYSTEM_POWER_OFF), pdFALSE, (void*) 0, shutdownTimerCallback);
     xTimerStart(shutdownTimerHandle, 0);
     digitalWrite(LED_PIN, HIGH); 
-    // startUploadTask();
+    startUploadTask();
 
     printLocalTime();
 

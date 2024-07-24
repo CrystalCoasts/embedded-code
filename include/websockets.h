@@ -47,6 +47,7 @@ private:
     // Individual command handlers
     uint8_t handleReadCommand(String data);
     uint8_t handleUpdateCommand(String data);
+    uint8_t handleResetCommand();
 };
 
 extern WebSocket& ws;  // Global WebSocket instance

@@ -13,9 +13,9 @@
 #define HOUR_MS (60 * MINUTE_MS)
 
 // Time units in microseconds (for sleep modes)
-#define SECOND_US (1000000)
-#define MINUTE_US (60 * SECOND_US)
-#define HOUR_US (60 * MINUTE_US)
+#define SECOND_US (1000000ULL)
+#define MINUTE_US (60ULL * SECOND_US)
+#define HOUR_US (60ULL * MINUTE_US)
 
 
 
