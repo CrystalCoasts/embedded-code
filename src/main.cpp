@@ -7,6 +7,9 @@
 #include <Preferences.h>
 #include <esp_sleep.h>
 
+#include "soc/rtc_cntl_reg.h"
+#include "soc/rtc.h"
+#include "driver/rtc_io.h"
 
 
 // Sensor headers
@@ -51,20 +54,22 @@ const char* CSV_DIR_PATH = "/csvFiles";
 //battery values
 const uint16_t BATTERY_CHARGE = 10000; // 10000 mAh
 const uint8_t BATTERY_DRAW_SLEEP = 60; // 60 mA
-const uint8_t BATTERY_DRAW_ACTIVE = 180; // 180 mA
+const uint8_t BATTERY_DRAW_ACTIVE = 190; // 190 mA
+
+bool sdON = false;
 
 // Global variables for battery management
 Preferences prefs;
-volatile uint16_t batteryLevel =BATTERY_CHARGE ; // Default battery level
+volatile uint16_t batteryLevel = BATTERY_CHARGE ; // Default battery level
 unsigned long lastUpdateTime = 0;
 
 
 //timers
 // volatile uint64_t powerOnTimer = (3600 * 1000) * 2;  // 2 hours
-const uint64_t SYSTEM_POWER_ON = 2 * HOUR_US;
+const uint64_t SYSTEM_POWER_ON = 25 * MINUTE_US;
 volatile uint64_t USER_POWER_ON = 5 * HOUR_US;
 
-uint64_t SYSTEM_POWER_OFF = 5* MINUTE_MS;  
+uint64_t SYSTEM_POWER_OFF = 5 * MINUTE_MS;  
 const uint64_t SENSOR_TASK_TIMER = HALF_MINUTE_MS; // 30 seconds, for tasks
 
 //tasks semaphores
@@ -128,6 +133,7 @@ void setup() {
     if(!SD.begin(SdSpiConfig(5, SHARED_SPI, SD_SCK_MHZ(16)))){
         String msg = SD_TAG + String (" Card Mount Failed");
         Serial.println(msg);
+        cardMount = false;
     }
     else  {
         String msg = SD_TAG + String (" Card mount sucessful!");
@@ -176,8 +182,18 @@ void sensorTask(void *pvParameters) {
         readSensorData(data);
         printDataOnCLI(data);
         
+        if(!cardMount)  {
+            SD.begin(SdSpiConfig(5, SHARED_SPI, SD_SCK_MHZ(16)));
+            String msg = SD_TAG + String (" Card Mount Failed");
+            Serial.println(msg);
+        }
+        else  {
+            cardMount = true;
+        }  
+
         if (!saveCSVData(SD, prepareCSVPayload(data))) {
             Serial.println("[TASKS] Failed to save CSV data.");
+            cardMount = false;
         }
         if (!saveJsonData(SD, prepareJsonPayload(data))) {
             Serial.println("[TASKS] Failed to save JSON data.");
@@ -323,6 +339,10 @@ void stopSensorTask() {
     if (sensorTaskRunning) {
         sensorTaskRunning = false; // This will cause the task to exit its loop and clean up
     }
+    digitalWrite(25, LOW);
+    digitalWrite(26, LOW);
+    gpio_hold_en(GPIO_NUM_25);
+    gpio_hold_en(GPIO_NUM_26);
 }
 
 void readBatteryTask(void *pvParameters) {

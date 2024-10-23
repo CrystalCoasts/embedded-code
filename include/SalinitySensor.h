@@ -17,13 +17,15 @@ public:
     bool readTDS(float* salinity);
     void DisableAllReadings();
     void sleep();
-    
+    static constexpr short EN_S = 25;
 
 private:
     String ecName = "SAL";
     static constexpr short EC_ADDR = 0x14;
     Ezo_board ec = Ezo_board(EC_ADDR, ecName.c_str());
     char ec_data[32];
+
+    
 
     static constexpr uint8_t TEMP_COMP = 25;
     static constexpr uint8_t K_FACTOR = 1;

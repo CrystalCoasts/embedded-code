@@ -203,26 +203,35 @@ bool saveJsonData(SdFat32 &SD, const String &data) {
         if (!getLocalTime(&timeinfo)) {
             Serial.println("Failed to get local time.");
             xSemaphoreGive(sdCardMutex);
-            return false;
         }
 
         String directoryPath = JSON_DIR_PATH;
         if (!SD.exists(directoryPath)) {
             SD.mkdir(directoryPath);
         }
-
-        String filename = String(directoryPath) + "/" + (timeinfo.tm_mon + 1) + '-' + timeinfo.tm_mday + '-' + (timeinfo.tm_year + 1900) + "-data.json";
-        file = SD.open(filename, O_WRITE | O_CREAT | O_APPEND);
-        if (file) {
-            if (file.println(data)) {
-                Serial.println("Data saved successfully.");
-            } else {
-                Serial.println("Failed to save data.");
-            }
-            file.close();
+        
+        String filename;
+        if (!getLocalTime(&timeinfo)) {
+            Serial.println("Failed to get local time.");
+            filename = String(directoryPath) + "/unknown-time.json";
+        }else
+            filename = String(directoryPath) + "/" + (timeinfo.tm_mon + 1) + '-' + timeinfo.tm_mday + '-' + (timeinfo.tm_year) + "-data.json";
+    
+        //file = SD.open(filename, O_WRITE | O_CREAT | O_APPEND);
+        if (!SD.open(filename, O_WRITE | O_APPEND)) {
+                Serial.println("Failed to open JSON file for writing.");
+                file = SD.open(filename, O_WRITE | O_CREAT);
         } else {
-            Serial.println("Failed to open JSON file for writing.");
+            file = SD.open(filename, O_WRITE | O_APPEND);
+            //Serial.println("Failed to open JSON file for writing.");
         }
+        if (file.println(data)) {
+            Serial.println("Data saved successfully.");
+        } else {
+            Serial.println("Failed to save data.");
+            Serial.println(file.println());
+        }
+        file.close();
         xSemaphoreGive(sdCardMutex);
         return true;
     } else {
