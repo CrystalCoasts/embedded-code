@@ -28,6 +28,8 @@ struct SensorData {
     bool salinityValid= true;
     float tds;
     bool tdsValid= true;
+    float ec;
+    bool ecValid = true;
     float pH ;
     bool pHValid= true;
     float oxygenLevel;

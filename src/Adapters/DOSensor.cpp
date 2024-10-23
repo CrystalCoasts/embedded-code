@@ -19,10 +19,15 @@ void DOSensor::begin()
     char parsedData[32];
     delay(500);
 
-     if (parseValue(ec_data, parsedData, "?Cal")) {
-        Serial.println("Calibration profile detected.");
-        calibrated = (atoi(parsedData) != 0);
-    }
+    // if (parseValue(ec_data, parsedData, "?Cal")) {
+    //     Serial.println("Calibration profile detected.");
+    //     calibrated = (atoi(parsedData) != 0);
+    // }
+
+    // Sends a calibration command to calibrate DO to atmospheric oxygen levels
+    // ec2.send_cmd("Cal");
+    // delay(1300);
+    // Serial.println("DO Calibration Complete")
 
     ec2.send_cmd("T,?");
     delay(500);

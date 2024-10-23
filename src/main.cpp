@@ -123,7 +123,7 @@ void setup() {
     tbdty.begin();
     phGloabl.begin();
     DO.begin();
-    sal.begin(); //also tds
+    sal.begin(); //also tds & ec
 
     // Create mutexes
     sdCardMutex = xSemaphoreCreateMutex();

@@ -37,6 +37,7 @@ void readSensorData(SensorData &data)
     data.turbidityValid = tbdty.readTurbidity(&data.turbidity);
     data.salinityValid = sal.readSalinity(&data.salinity);
     data.tdsValid = sal.readTDS(&data.tds);
+    data.ecValid = sal.readEC(&data.ec);
     data.pHValid = phGloabl.readpH(&data.pH);
     data.oxygenLevelValid = DO.readDO(&data.oxygenLevel, data.salinity, data.temperature);
     data.humidityValid = temp.readHumidity(&data.humidity);
@@ -50,6 +51,7 @@ void readSensorData(SensorData &data)
     data.pH = round(data.pH * 1000.0) / 1000.0;
     data.oxygenLevel = round(data.oxygenLevel * 1000.0) / 1000.0;
     data.tds = round(data.tds * 1000.0) / 1000.0;
+    data.ec = round(data.ec*1000.0) / 1000.0; 
     data.humidity = round(data.humidity * 1000.0) / 1000.0;
 
     Serial.println("Sensor readings complete.");
@@ -92,6 +94,8 @@ void printDataOnCLI(const SensorData& data){
     toPrint += "+-----------------------+-----------------------+\n";
     toPrint+= "|TDS: "+String(data.tds,3)+"\n";
     toPrint += "+-----------------------+-----------------------+\n";
+    toPrint+= "|EC: "+String(data.ec,3)+"\n";
+    toPrint += "+-----------------------+-----------------------+\n";
     toPrint+= "|Oxigen Level: "+String(data.oxygenLevel,3)+"\n";
     toPrint += "+-----------------------+-----------------------+\n";
     toPrint+= "|PH: "+String(data.pH,3)+"\n";
@@ -108,6 +112,7 @@ void validateSensorReadings(SensorData& data) {
     data.turbidityValid = !isnan(data.turbidity) && data.turbidity >= 0;
     data.salinityValid = !isnan(data.salinity) && data.salinity >= 0;
     data.tdsValid = !isnan(data.tds) && data.tds >= 0;
+    data.ecValid = !isnan(data.ec) && data.ec >= 0;
     data.pHValid = !isnan(data.pH) && data.pH >= 0;
     data.oxygenLevelValid = !isnan(data.oxygenLevel) && data.oxygenLevel >= 0;
 }
@@ -139,10 +144,13 @@ String prepareCSVPayload(const SensorData& data)    {
     const tm& timeinfo = get_current_time();
     return String(data.humidity, 3) + ", " + String(data.temperature, 3) +
         ", " + String(data.turbidity, 3) + ", " + String(data.salinity, 3) + 
-        ", " + String(data.tds, 3) + ", " + String(data.pH, 3) + ", " +
-        String(data.oxygenLevel, 3) + ", " + (timeinfo.tm_mon+1) + ", " +
-        timeinfo.tm_mday + ", " + (timeinfo.tm_year) + ", " + timeinfo.tm_hour +
-        ":" + timeinfo.tm_min + ":" + timeinfo.tm_sec;   
+        ", " + String(data.tds, 3) + ", " + String(data.ec, 3) + ", "
+        ", " + String(data.pH, 3) + ", " +
+        String(data.oxygenLevel, 3) + ", " + 
+        (timeinfo.tm_mon+1) + ", " +
+        timeinfo.tm_mday + ", " + 
+        (timeinfo.tm_year) + ", " + 
+        timeinfo.tm_hour + ":" + timeinfo.tm_min + ":" + timeinfo.tm_sec;   
 }
 
 bool saveCSVData(SdFat32 &SD, const String& data) {
