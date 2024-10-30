@@ -13,8 +13,8 @@ enum TEMP {CELSIUS,FAHRENHEIT};
 class TempSensor
 {
 public:
-    static constexpr uint8_t ONE_WIRE_BUS = 33;
-    static constexpr uint8_t DHTPIN = 4;
+    static constexpr uint8_t ONE_WIRE_BUS = 41;
+    static constexpr uint8_t DHTPIN = 42;
     static constexpr uint8_t DHTTYPE = DHT22;
     static constexpr uint8_t TEMP_INDEX = 0;
 

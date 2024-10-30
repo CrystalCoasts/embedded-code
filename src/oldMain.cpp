@@ -1,4 +1,24 @@
 // #include <Arduino.h>
+// #include <esp_adc_cal.h>
+// #include <esp32-hal-adc.h>
+
+// void setup() 
+// {
+//   Serial.begin(115200);
+//   analogReadResolution(12);
+//   pinMode(1, INPUT);  //GPIO4
+//   adcAttachPin(1);    //GPIO4
+
+// }
+
+// void loop() 
+// {
+//   int RawADC= adc1_get_raw(ADC1_CHANNEL_0); //GPIO9
+//   Serial.println(RawADC);
+//   delay(100);
+// }
+
+// #include <Arduino.h>
 
 // //required
 // #include <WiFi.h>
@@ -321,36 +341,36 @@
 // }
 
 
-// void loop() {
+// // void loop() {
     
 
-//     int buttonState = digitalRead(BUTTON_PIN);
-//     if(buttonState = LOW){
-//         tbdty.calibrate();
+// //     int buttonState = digitalRead(BUTTON_PIN);
+// //     if(buttonState = LOW){
+// //         tbdty.calibrate();
 
-//         //simple debounce
-//         while (digitalRead(BUTTON_PIN) == LOW) {
-//             delay(50);
-//         }
+// //         //simple debounce
+// //         while (digitalRead(BUTTON_PIN) == LOW) {
+// //             delay(50);
+// //         }
     
-//     }
+// //     }
 
-//     if (WiFi.status() == WL_CONNECTED) {
-//         // WiFi connected, set LED solid
-//         setLEDSolid(true);
-//     } else {
-//         // WiFi not connected
-//         if (WiFi.status() == WL_IDLE_STATUS) {
-//             // Initial connection attempt, blink twice
-//             blinkLED(200); // Short blink
-//             delay(200);
-//             blinkLED(200); // Short blink
-//             delay(200);
-//         } else {
-//             // WiFi connection failed, continue blinking
-//             blinkLED(500); // Blink every 500 ms
-//         }
-//     }
+// //     if (WiFi.status() == WL_CONNECTED) {
+// //         // WiFi connected, set LED solid
+// //         setLEDSolid(true);
+// //     } else {
+// //         // WiFi not connected
+// //         if (WiFi.status() == WL_IDLE_STATUS) {
+// //             // Initial connection attempt, blink twice
+// //             blinkLED(200); // Short blink
+// //             delay(200);
+// //             blinkLED(200); // Short blink
+// //             delay(200);
+// //         } else {
+// //             // WiFi connection failed, continue blinking
+// //             blinkLED(500); // Blink every 500 ms
+// //         }
+// //     }
 
-//     delay(100); // Add a small delay to prevent excessive CPU usage
-// }
+// //     delay(100); // Add a small delay to prevent excessive CPU usage
+// // }

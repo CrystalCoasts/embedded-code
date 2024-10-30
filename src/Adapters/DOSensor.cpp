@@ -13,8 +13,8 @@ DOSensor &DOSensor::get()
 
 void DOSensor::begin()
 {   
-    pinMode(EN_O, OUTPUT);
-    digitalWrite(EN_O, HIGH);
+    //pinMode(EN_O, OUTPUT);
+    //digitalWrite(EN_O, HIGH);
     int calibrated = 0, tempComp = 0, salComp = 0;
     char parsedData[32];
     delay(500);
@@ -61,7 +61,7 @@ void DOSensor::begin()
 
 bool DOSensor::readDO(float* DO, float salinity, float temp) {
 
-    digitalWrite(EN_O, HIGH);
+    //digitalWrite(EN_O, HIGH);
     delay(300);
     //must send salinity and temp for proper reading
     String command = "S," + String(salinity) + ",ppt";

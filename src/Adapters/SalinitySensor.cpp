@@ -10,8 +10,9 @@ void SalinitySensor::begin() {
     bool calibrated, tempComp, kFactor;
     char parsedData[32];
     delay(500);
-    digitalWrite(EN_S, HIGH);
-
+    //pinMode(EN_S, OUTPUT);
+    //digitalWrite(EN_S, HIGH);
+    
     // 2 Step Calibration Code 
     // Serial.println("Starting Salnity Dry Calibration");
     // ec.send_cmd("Cal, dry"); 
@@ -113,8 +114,8 @@ bool SalinitySensor::readSalinity(float* salinity) {
     //     EnableDisableSingleReading(SAL, 1);
 
     // }
-    pinMode(EN_S, OUTPUT);
-    digitalWrite(EN_S, HIGH);
+    //pinMode(EN_S, OUTPUT);
+    //digitalWrite(EN_S, HIGH);
     delay(1200);
     ec.send_cmd("R");
     delay(600);
@@ -137,7 +138,7 @@ bool SalinitySensor::readTDS(float* salinity){
     EnableDisableSingleReading(SAL, 0);
     EnableDisableSingleReading(TDS, 1);
 
-    digitalWrite(EN_S, HIGH);
+    //digitalWrite(EN_S, HIGH);
     delay(600);
     ec.send_cmd("R");
     delay(600);
@@ -157,7 +158,7 @@ bool SalinitySensor::readEC(float* salinity){
     EnableDisableSingleReading(EC, 0);
     EnableDisableSingleReading(EC, 1);
 
-    digitalWrite(EN_S, HIGH);
+    //digitalWrite(EN_S, HIGH);
     delay(600);
     ec.send_cmd("R");
     delay(600);
@@ -221,6 +222,6 @@ SalinitySensor& SalinitySensor::Get() {
 void SalinitySensor::sleep() {
     ec.send_cmd("Sleep");
     delay(300);
-    digitalWrite(EN_S, LOW);
+    //digitalWrite(EN_S, LOW);
 
 }

@@ -10,6 +10,7 @@
 #include "soc/rtc_cntl_reg.h"
 #include "soc/rtc.h"
 #include "driver/rtc_io.h"
+#include "driver/i2c.h"
 
 
 // Sensor headers
@@ -103,10 +104,11 @@ void powerOffSequence();
 
 void setup() {
     setCpuFrequencyMhz(80);
-    Serial.begin(115200);
+    Serial.begin(921600);
     
-    Wire.begin(); // initialize early to ensure sensors can use it
+    //Wire.begin(); // initialize early to ensure sensors can use it
     // Initialize WiFi we need to continue even if wifi fails
+    Wire.begin(15, 16);
     WiFi.begin(SSID, PASSWD);
     if (WiFi.status() == WL_CONNECTED){
         String msg = SD_TAG + String (" WiFi connected");
@@ -114,9 +116,18 @@ void setup() {
         isConnected = true;
     }
 
+    int i2c_master_port = 0;
+    i2c_config_t conf = {
+        .mode = I2C_MODE_MASTER,
+        .sda_io_num = 15,         // select GPIO specific to your project
+        .scl_io_num = 16,         // select GPIO specific to your project
+        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+        .clk_flags = 0,                          // you can use I2C_SCLK_SRC_FLAG_* flags to choose i2c source clock here
+    };
+    i2c_driver_install(I2C_NUM_MAX, I2C_MODE_MASTER, 500, 500, 0);
     //setup spi 
-    SPI.begin(18, 19, 23, 5);
-    SPI.setDataMode(SPI_MODE0);
+    // SPI.begin(18, 19, 23, 5);
+    // SPI.setDataMode(SPI_MODE0);
 
     // Initialize sensors before wifi
     temp.begin();
@@ -130,16 +141,16 @@ void setup() {
     sensorMutex = xSemaphoreCreateMutex();
     
     // Initialize SD card
-    if(!SD.begin(SdSpiConfig(5, SHARED_SPI, SD_SCK_MHZ(16)))){
-        String msg = SD_TAG + String (" Card Mount Failed");
-        Serial.println(msg);
-        cardMount = false;
-    }
-    else  {
-        String msg = SD_TAG + String (" Card mount sucessful!");
-        Serial.println(msg);
-        cardMount = true;
-    }  
+    // if(!SD.begin(SdSpiConfig(5, SHARED_SPI, SD_SCK_MHZ(16)))){
+    //     String msg = SD_TAG + String (" Card Mount Failed");
+    //     Serial.println(msg);
+    //     cardMount = false;
+    // }
+    // else  {
+    //     String msg = SD_TAG + String (" Card mount sucessful!");
+    //     Serial.println(msg);
+    //     cardMount = true;
+    // }  
     
   
     //other system initializations

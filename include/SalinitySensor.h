@@ -26,8 +26,6 @@ private:
     Ezo_board ec = Ezo_board(EC_ADDR, ecName.c_str());
     char ec_data[32];
 
-    
-
     static constexpr uint8_t TEMP_COMP = 25;
     static constexpr uint8_t K_FACTOR = 1;
     bool salFlag = false;
