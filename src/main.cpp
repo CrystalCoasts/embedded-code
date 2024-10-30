@@ -341,8 +341,8 @@ void stopSensorTask() {
     }
     digitalWrite(25, LOW);
     digitalWrite(26, LOW);
-    gpio_hold_en(GPIO_NUM_25);
-    gpio_hold_en(GPIO_NUM_26);
+    //gpio_hold_en(GPIO_NUM_25);
+    //gpio_hold_en(GPIO_NUM_26);
 }
 
 void readBatteryTask(void *pvParameters) {
