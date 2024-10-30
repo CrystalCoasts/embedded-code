@@ -15,9 +15,10 @@ void SalinitySensor::begin() {
     // 2 Step Calibration Code 
     // Serial.println("Starting Salnity Dry Calibration");
     // ec.send_cmd("Cal, dry"); 
+    // delay(600);
     // Serial.println("Finishes, 3 seconds to switch to 80,000");
-    // delay(3000);
-    // ec.send_cmd("Cal, 80000");
+    // delay(5000);
+    // ec.send_cmd("Cal, 12880");
     // delay(600);
     // Serial.println("Salinity Calibration Complete!");
 
