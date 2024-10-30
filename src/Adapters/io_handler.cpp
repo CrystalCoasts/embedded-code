@@ -181,15 +181,15 @@ String prepareCSVPayload(const SensorData& data)    {
         timeinfo.tm_hour + ":" + timeinfo.tm_min + ":" + timeinfo.tm_sec;   
 }
 
-bool saveCSVData(SdFat32 &SD, const String& data) {
+bool saveCSVData(fs::FS &fs, const String& data) {
     if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
         struct tm timeinfo;
         Serial.println("Saving data to CSV file...");
-        File32 file;
 
         String directoryPath = CSV_DIR_PATH;
-        if (!SD.exists(directoryPath)) {
-            SD.mkdir(directoryPath);
+        File root = fs.open(directoryPath);
+        if (!root) {
+            fs.mkdir(directoryPath);
         }
 
         String filename;
@@ -198,25 +198,24 @@ bool saveCSVData(SdFat32 &SD, const String& data) {
             filename = directoryPath + "/unknown-time.csv";
             // return false;
         }
-
         else {
             filename = String(directoryPath) + "/" + (timeinfo.tm_mon+1) + '-' + timeinfo.tm_mday + '-' + (timeinfo.tm_year) + "-data.csv";
         }    
-        
-        if(!SD.open(filename, O_WRITE | O_APPEND))    {       //if cant open file to append/doesn't exist, create said file and write the headers
-            file = SD.open(filename, O_WRITE | O_CREAT);
+
+        File file;
+        if(!(file = fs.open(filename, FILE_APPEND)))    {       //if cant open file to append/doesn't exist, create said file and write the headers
             String header = "Humidity, Temperature, Turbidity, Salinity, TDS, pH, Disolved Oxygen, Month, Day, Year, Time";
+            file = fs.open(filename, FILE_WRITE);
             file.println(header);
         }
-        else{
-            file = SD.open(filename, O_WRITE | O_APPEND);
-        }
-        if (file.println(data)) {
+
+        if(file.println(data)) {
                 Serial.println("Data saved successfully.");
         } 
         else {
             Serial.println("Failed to save data.");
         }
+        root.close();
         file.close();
         xSemaphoreGive(sdCardMutex);
         return true;
@@ -226,15 +225,12 @@ bool saveCSVData(SdFat32 &SD, const String& data) {
     }
 }
 
-
-
-
-bool saveJsonData(SdFat32 &SD, const String &data) {
+bool saveJsonData(fs::FS &fs, const String &data) {
     if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
         struct tm timeinfo;
         Serial.println("Saving data to JSON file...");
         Serial.println(data);
-        File32 file;
+        File root;
 
         if (!getLocalTime(&timeinfo)) {
             Serial.println("Failed to get local time.");
@@ -242,8 +238,9 @@ bool saveJsonData(SdFat32 &SD, const String &data) {
         }
 
         String directoryPath = JSON_DIR_PATH;
-        if (!SD.exists(directoryPath)) {
-            SD.mkdir(directoryPath);
+        root = fs.open(JSON_DIR_PATH);
+        if (!root) {
+            fs.mkdir(directoryPath);
         }
         
         String filename;
@@ -254,12 +251,10 @@ bool saveJsonData(SdFat32 &SD, const String &data) {
             filename = String(directoryPath) + "/" + (timeinfo.tm_mon + 1) + '-' + timeinfo.tm_mday + '-' + (timeinfo.tm_year) + "-data.json";
     
         //file = SD.open(filename, O_WRITE | O_CREAT | O_APPEND);
-        if (!SD.open(filename, O_WRITE | O_APPEND)) {
+        File file;
+        if (!(file = fs.open(filename, FILE_APPEND))) {
                 Serial.println("Failed to open JSON file for writing.");
-                file = SD.open(filename, O_WRITE | O_CREAT);
-        } else {
-            file = SD.open(filename, O_WRITE | O_APPEND);
-            //Serial.println("Failed to open JSON file for writing.");
+                file = fs.open(filename, FILE_WRITE);
         }
         if (file.println(data)) {
             Serial.println("Data saved successfully.");
@@ -267,6 +262,7 @@ bool saveJsonData(SdFat32 &SD, const String &data) {
             Serial.println("Failed to save data.");
             Serial.println(file.println());
         }
+        root.close();
         file.close();
         xSemaphoreGive(sdCardMutex);
         return true;
@@ -277,23 +273,21 @@ bool saveJsonData(SdFat32 &SD, const String &data) {
 }
 
 
+String readDataFromSD(fs::FS &fs, const char* fileName) {
+    if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
+        File file = fs.open(fileName, FILE_READ);
+        if (!file) {
+            Serial.println("Failed to open file for reading");
+            xSemaphoreGive(sdCardMutex);
+            return String();
+        }
 
-
-// String readDataFromSD(SdFat32 &SD, const char* fileName) {
-//     if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
-//         File32 file = SD.open(fileName, O_READ);
-//         if (!file) {
-//             Serial.println("Failed to open file for reading");
-//             xSemaphoreGive(sdCardMutex);
-//             return String();
-//         }
-
-//         String data = file.readStringUntil('\n');
-//         file.close();
-//         xSemaphoreGive(sdCardMutex);
-//         return data;
-//     } else {
-//         Serial.println("Failed to obtain SD Card mutex for reading.");
-//         return String();
-//     }
-// }
+        String data = file.readStringUntil('\n');
+        file.close();
+        xSemaphoreGive(sdCardMutex);
+        return data;
+    } else {
+        Serial.println("Failed to obtain SD Card mutex for reading.");
+        return String();
+    }
+}

@@ -13,6 +13,7 @@
 #include "driver/i2c.h"
 
 
+
 // Sensor headers
 #include "TempSensor.h"
 #include "TurbiditySensor.h"
@@ -141,6 +142,42 @@ void setup() {
     sensorMutex = xSemaphoreCreateMutex();
     
     // Initialize SD card
+
+    SD_MMC.setPins(PIN_SD_CLK, PIN_SD_CMD, PIN_SD_D0);
+    if (!SD_MMC.begin("/sdcard", true, true))
+    {
+        String msg = SD_TAG + String (" Card Mount Failed");
+        Serial.println(msg);
+    }
+    uint8_t cardType = SD_MMC.cardType();
+
+        if (cardType == CARD_NONE)
+    {
+        Serial.println("No SD_MMC card attached");
+    }
+
+    Serial.print("SD_MMC Card Type: ");
+    if (cardType == CARD_MMC)
+    {
+        Serial.println("MMC");
+    }
+    else if (cardType == CARD_SD)
+    {
+        Serial.println("SDSC");
+    }
+    else if (cardType == CARD_SDHC)
+    {
+        Serial.println("SDHC");
+    }
+    else
+    {
+        Serial.println("UNKNOWN");
+    }
+
+    uint64_t cardSize = SD_MMC.cardSize() / (1024 * 1024);
+    Serial.printf("SD_MMC Card Size: %lluMB\n", cardSize);
+
+
     // if(!SD.begin(SdSpiConfig(5, SHARED_SPI, SD_SCK_MHZ(16)))){
     //     String msg = SD_TAG + String (" Card Mount Failed");
     //     Serial.println(msg);
@@ -193,20 +230,20 @@ void sensorTask(void *pvParameters) {
         readSensorData(data);
         printDataOnCLI(data);
         
-        if(!cardMount)  {
-            SD.begin(SdSpiConfig(5, SHARED_SPI, SD_SCK_MHZ(16)));
-            String msg = SD_TAG + String (" Card Mount Failed");
-            Serial.println(msg);
-        }
-        else  {
-            cardMount = true;
-        }  
+        // if(!cardMount)  {
+        //     SD_MMC.begin("/sdcard", true, true);
+        //     String msg = SD_TAG + String (" Card Mount Failed");
+        //     Serial.println(msg);
+        // }
+        // else  {
+        //     cardMount = true;
+        // }  
 
-        if (!saveCSVData(SD, prepareCSVPayload(data))) {
+        if (!saveCSVData(SD_MMC, prepareCSVPayload(data))) {
             Serial.println("[TASKS] Failed to save CSV data.");
             cardMount = false;
         }
-        if (!saveJsonData(SD, prepareJsonPayload(data))) {
+        if (!saveJsonData(SD_MMC, prepareJsonPayload(data))) {
             Serial.println("[TASKS] Failed to save JSON data.");
         }
 
@@ -226,24 +263,24 @@ void uploadTask(void *pvParameters) {
             continue;
         }
 
-        SdFile root, file;
-        if (!root.open(JSON_DIR_PATH, O_READ)) {
+        File root, file;
+        if (!(root = SD_MMC.open(JSON_DIR_PATH, FILE_READ))) {
             Serial.println("Failed to open directory");
             vTaskDelay(pdMS_TO_TICKS(10000)); // Wait for 10 seconds before retrying
             continue;
         }
 
-        char fileName[100];
-        while (file.openNext(&root, O_READ)) {
-            if (file.isDir()) {
+        String fileName;
+        while (file = root.openNextFile()) { // openNext(&root, O_READ)) { 
+            if (file.isDirectory()) {
                 file.close();
                 continue;
             }
 
-            file.getName(fileName, sizeof(fileName));
+            fileName = file.name();
             if (String(fileName).startsWith(".") || !String(fileName).endsWith(".json")) {
                 file.close();
-                file.remove();
+                SD_MMC.remove(fileName);
                 continue;
             }
 
@@ -269,7 +306,7 @@ void uploadTask(void *pvParameters) {
 
             file.close();
             if (allLinesUploaded) {
-                SD.remove(String(JSON_DIR_PATH) + "/" + String(fileName)); // Ensure the path is correct
+                SD_MMC.remove(String(JSON_DIR_PATH) + "/" + String(fileName)); // Ensure the path is correct
                 Serial.println(String(fileName) + " uploaded and deleted successfully.");
             } else {
                 Serial.println("Not all lines in the file were uploaded successfully.");
