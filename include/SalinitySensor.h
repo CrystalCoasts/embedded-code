@@ -17,6 +17,7 @@ public:
     bool readTDS(float* tds);
     bool readEC(float* ec);
     void DisableAllReadings();
+    void calibrate();
     void sleep();
     static constexpr short EN_S = 25;
 

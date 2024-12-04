@@ -13,16 +13,6 @@ void SalinitySensor::begin() {
     //pinMode(EN_S, OUTPUT);
     //digitalWrite(EN_S, HIGH);
     
-    // 2 Step Calibration Code 
-    // Serial.println("Starting Salnity Dry Calibration");
-    // ec.send_cmd("Cal, dry"); 
-    // delay(600);
-    // Serial.println("Finishes, 3 seconds to switch to 80,000");
-    // delay(5000);
-    // ec.send_cmd("Cal, 12880");
-    // delay(600);
-    // Serial.println("Salinity Calibration Complete!");
-
     ec.send_cmd("Cal,?");
     delay(500);
     ec.receive_cmd(ec_data, sizeof(ec_data));
@@ -171,6 +161,28 @@ bool SalinitySensor::readEC(float* salinity){
     return false;
 }
 
+void SalinitySensor::calibrate()    {
+
+    Serial.println("Clearing previous calibration...");
+    ec.send_cmd("Cal,clear");
+    delay(300);
+    // 2 Step Calibration Code 
+    Serial.println("Starting Salnity Dry Calibration");
+    ec.send_cmd("Cal,dry"); 
+    delay(600);
+    Serial.println("Finished, 10 seconds to switch to 12,880 low point calibration");
+    delay(10000);
+    ec.send_cmd("Cal,low,12880");
+    delay(600);
+    Serial.println("Finished low point, 10 seconds to switch to 80,000 high point calibration");
+    delay(10000);
+    ec.send_cmd("Cal,high,80000");
+    delay(600);
+    Serial.println("Salinity Calibration Complete!");
+
+
+}
+
 void SalinitySensor::DisableAllReadings() {
     ec.send_cmd("O,EC,0");
     delay(500);
@@ -183,6 +195,8 @@ void SalinitySensor::DisableAllReadings() {
     delay(500);
     Serial.println("Cleared Readings.");
 }
+
+
 
 bool SalinitySensor::parseValue(const char* rawBuff, char* parsedBuff, const char* key) {
     const char* found = strstr(rawBuff, key);

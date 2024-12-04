@@ -243,25 +243,25 @@ bool saveJsonData(fs::FS &fs, const String &data) {
             fs.mkdir(directoryPath);
         }
         
+        File file;
         String filename;
         if (!getLocalTime(&timeinfo)) {
             Serial.println("Failed to get local time.");
-            filename = String(directoryPath) + "/unknown-time.json";
-        }else
+            Serial.println("Data will not be saving in JSON format.");
+        }else   {
             filename = String(directoryPath) + "/" + (timeinfo.tm_mon + 1) + '-' + timeinfo.tm_mday + '-' + (timeinfo.tm_year) + "-data.json";
-    
-        //file = SD.open(filename, O_WRITE | O_CREAT | O_APPEND);
-        File file;
-        if (!(file = fs.open(filename, FILE_APPEND))) {
-                Serial.println("Failed to open JSON file for writing.");
-                file = fs.open(filename, FILE_WRITE);
+            if (!(file = fs.open(filename, FILE_APPEND))) {
+                    Serial.println("Failed to open JSON file for writing.");
+                    file = fs.open(filename, FILE_WRITE);
+            }
+            if (file.println(data)) {
+                Serial.println("Data saved successfully.");
+            } else {
+                Serial.println("Failed to save data.");
+                Serial.println(file.println());
+            }
         }
-        if (file.println(data)) {
-            Serial.println("Data saved successfully.");
-        } else {
-            Serial.println("Failed to save data.");
-            Serial.println(file.println());
-        }
+        
         root.close();
         file.close();
         xSemaphoreGive(sdCardMutex);

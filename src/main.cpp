@@ -71,7 +71,7 @@ unsigned long lastUpdateTime = 0;
 const uint64_t SYSTEM_POWER_ON = 25 * MINUTE_US;
 volatile uint64_t USER_POWER_ON = 5 * HOUR_US;
 
-uint64_t SYSTEM_POWER_OFF = 5 * MINUTE_MS;  
+uint64_t SYSTEM_POWER_OFF = 30 * MINUTE_MS;  
 const uint64_t SENSOR_TASK_TIMER = HALF_MINUTE_MS; // 30 seconds, for tasks
 
 //tasks semaphores
@@ -105,7 +105,7 @@ void powerOffSequence();
 
 void setup() {
     setCpuFrequencyMhz(80);
-    Serial.begin(921600);
+    Serial.begin(115200);
     
     //Wire.begin(); // initialize early to ensure sensors can use it
     // Initialize WiFi we need to continue even if wifi fails
@@ -136,6 +136,8 @@ void setup() {
     phGloabl.begin();
     DO.begin();
     sal.begin(); //also tds & ec
+
+    //sal.calibrate();
 
     // Create mutexes
     sdCardMutex = xSemaphoreCreateMutex();
