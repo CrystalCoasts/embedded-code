@@ -8,11 +8,13 @@ TurbiditySensor& tbdty = TurbiditySensor::Get();
 TurbiditySensor::TurbiditySensor() {}
 
 void TurbiditySensor::begin() {
+
     EEPROM.get(EEPROM_VCLEAR_ADDRESS, vClear); // Retrieve the vClear from EEPROM
     analogReadResolution(12); // Set ADC resolution to 12-bit
     pinMode(EN, OUTPUT);
-    pinMode(T_ANALOG_PIN, INPUT);  //GPIO1
-    adcAttachPin(1);    //GPIO1
+    wakeup();
+    //pinMode(T_ANALOG_PIN, INPUT);  //GPIO2
+    adcAttachPin(T_ANALOG_PIN);    //GPIO2
     wakeup();
 }
 
@@ -38,7 +40,6 @@ float TurbiditySensor::calibrate() {
 
 bool TurbiditySensor::readTurbidity(float* turbidity) {
     wakeup();
-
     if (turbidity == nullptr) {
         return false; // Invalid pointer
     }

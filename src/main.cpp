@@ -19,6 +19,8 @@
 #include "TurbiditySensor.h"
 #include "SalinitySensor.h"
 #include "pHSensor.h"
+#include "ioExtender.h"
+#include "Adafruit_MCP23X17.h"
 
 //helpers
 #include "io_handler.h" //this includes SdFat32
@@ -72,7 +74,7 @@ const uint64_t SYSTEM_POWER_ON = 25 * MINUTE_US;
 volatile uint64_t USER_POWER_ON = 5 * HOUR_US;
 
 uint64_t SYSTEM_POWER_OFF = 30 * MINUTE_MS;  
-const uint64_t SENSOR_TASK_TIMER = HALF_MINUTE_MS; // 30 seconds, for tasks
+const uint64_t SENSOR_TASK_TIMER =  5000;  //HALF_MINUTE_MS; // 30 seconds, for tasks
 
 //tasks semaphores
 SemaphoreHandle_t sdCardMutex;
@@ -102,14 +104,18 @@ void stopUploadTask();
 void stopSensorTask();
 void powerOffSequence();
 
+// OneWire oneWire(41);
+// DallasTemperature sensors(&oneWire);
+Adafruit_MCP23X17 mcp2;
 
 void setup() {
-    setCpuFrequencyMhz(80);
+    //setCpuFrequencyMhz(80);
     Serial.begin(115200);
-    
+    //sensors.begin();
+
+    Wire.begin(15, 16);
     //Wire.begin(); // initialize early to ensure sensors can use it
     // Initialize WiFi we need to continue even if wifi fails
-    Wire.begin(15, 16);
     WiFi.begin(SSID, PASSWD);
     if (WiFi.status() == WL_CONNECTED){
         String msg = SD_TAG + String (" WiFi connected");
@@ -126,16 +132,45 @@ void setup() {
         .clk_flags = 0,                          // you can use I2C_SCLK_SRC_FLAG_* flags to choose i2c source clock here
     };
     i2c_driver_install(I2C_NUM_MAX, I2C_MODE_MASTER, 500, 500, 0);
+
     //setup spi 
     // SPI.begin(18, 19, 23, 5);
     // SPI.setDataMode(SPI_MODE0);
 
     // Initialize sensors before wifi
+
+    //mcp.begin_I2C();
     temp.begin();
     tbdty.begin();
     phGloabl.begin();
     DO.begin();
     sal.begin(); //also tds & ec
+    pinMode(40,OUTPUT);
+    digitalWrite(40,HIGH);
+    pinMode(38,OUTPUT);
+    digitalWrite(38,HIGH);
+    delay(200);
+    // mcpGlobal.begin();
+    // mcpGlobal.pinMode(0,OUTPUT);
+    // mcpGlobal.digitalWrite(0,HIGH);
+    mcp2.begin_I2C();
+    mcp2.pinMode(8,OUTPUT);
+    mcp2.digitalWrite(8,HIGH);
+  
+
+    // digitalWrite(40,LOW);
+    // delay(100);
+    // digitalWrite(40,HIGH);
+
+    // uncomment appropriate mcp.begin
+    // if (!mcp.begin_I2C()) {
+    // //if (!mcp.begin_SPI(CS_PIN)) {
+    //     Serial.println("Error.");
+    // }
+
+    // // configure pin for output
+    // mcp.pinMode(0, OUTPUT);
+    // mcp.digitalWrite(0,HIGH);
 
     //sal.calibrate();
 
@@ -178,6 +213,10 @@ void setup() {
 
     uint64_t cardSize = SD_MMC.cardSize() / (1024 * 1024);
     Serial.printf("SD_MMC Card Size: %lluMB\n", cardSize);
+
+    
+    // sensors.requestTemperatures(); 
+    // Serial.println("Temp:" + int(sensors.getTempCByIndex(0)));
 
 
     // if(!SD.begin(SdSpiConfig(5, SHARED_SPI, SD_SCK_MHZ(16)))){
@@ -364,6 +403,8 @@ void powerOffSequence() {
     prefs.putUInt("batteryLevel", batteryLevel);
     prefs.end();
 
+
+
     // Save the timer settings to NVS using rtc_handler's namespace
     saveTimerSettings(USER_POWER_ON);
     Serial.println("Entering deep sleep...");
@@ -389,10 +430,8 @@ void stopSensorTask() {
     if (sensorTaskRunning) {
         sensorTaskRunning = false; // This will cause the task to exit its loop and clean up
     }
-    digitalWrite(25, LOW);
-    digitalWrite(26, LOW);
-    //gpio_hold_en(GPIO_NUM_25);
-    //gpio_hold_en(GPIO_NUM_26);
+    digitalWrite(38, LOW);
+    gpio_hold_en(GPIO_NUM_38);
 }
 
 void readBatteryTask(void *pvParameters) {

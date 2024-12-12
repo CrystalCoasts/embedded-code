@@ -1,7 +1,11 @@
+#include <Arduino.h>
 #include "io_handler.h"
 #include "rtc_handler.h"
 #include <HTTPClient.h>
 #include <WiFi.h>
+#include "TempSensor.h"
+#include "dallasTemperature.h"
+#include <Adafruit_MCP23X17.h>
 
 // extern bool isConnected;
 
@@ -28,58 +32,63 @@ const char* KEY_SECOND = "Second";
 extern const char* JSON_DIR_PATH ;
 extern const char* CSV_DIR_PATH ;
 
-
 void readSensorData(SensorData &data)
 {
 
     Serial.println("Reading sensor data...");
-    data.temperatureValid = temp.readTemperature(FAHRENHEIT, &data.temperature);
+    pinMode(40,OUTPUT);
+    digitalWrite(40,HIGH);
+    byte error, address;
+    int nDevices;
+    Serial.println("Scanning...");
+    nDevices = 0;
+    for(address = 0; address < 127; address++ ) {
+        Wire.beginTransmission(address);
+        error = Wire.endTransmission();
+        if (error == 0) {
+        Serial.print("I2C device found at address 0x");
+        if (address<16) {
+            Serial.print("0");
+        }
+        Serial.println(address,HEX);
+        nDevices++;
+        }
+        else if (error==4) {
+        Serial.print("Unknow error at address 0x");
+        if (address<16) {
+            Serial.print("0");
+        }
+        Serial.println(address,HEX);
+        }    
+    }
+    if (nDevices == 0) {
+        Serial.println("No I2C devices found\n");
+    }
+    else {
+        Serial.println("done\n");
+    }
+
+
     data.turbidityValid = tbdty.readTurbidity(&data.turbidity);
-    data.salinityValid = sal.readSalinity(&data.salinity);
-    data.tdsValid = sal.readTDS(&data.tds);
-    data.ecValid = sal.readEC(&data.ec);
     data.pHValid = phGloabl.readpH(&data.pH);
     data.oxygenLevelValid = DO.readDO(&data.oxygenLevel, data.salinity, data.temperature);
+    data.ecValid = sal.readEC(&data.ec);
+    data.tdsValid = sal.readTDS(&data.tds);
+    data.salinityValid = sal.readSalinity(&data.salinity);
+
+    data.temperatureValid = temp.readTemperature(FAHRENHEIT, &data.temperature);
     data.humidityValid = temp.readHumidity(&data.humidity);
 
-    // byte error, address;
-    // int nDevices;
-    // Serial.println("Scanning...");
-    // nDevices = 0;
-    // for(address = 1; address < 127; address++ ) {
-    //     Wire.beginTransmission(address);
-    //     error = Wire.endTransmission();
-    //     if (error == 0) {
-    //     Serial.print("I2C device found at address 0x");
-    //     if (address<16) {
-    //         Serial.print("0");
-    //     }
-    //     Serial.println(address,HEX);
-    //     nDevices++;
-    //     }
-    //     else if (error==4) {
-    //     Serial.print("Unknow error at address 0x");
-    //     if (address<16) {
-    //         Serial.print("0");
-    //     }
-    //     Serial.println(address,HEX);
-    //     }    
-    // }
-    // if (nDevices == 0) {
-    //     Serial.println("No I2C devices found\n");
-    // }
-    // else {
-    //     Serial.println("done\n");
-    // }
+  
 
     // Round readings
     data.temperature = round(data.temperature * 1000.0) / 1000.0;
-    data.turbidity = round(data.turbidity * 1000.0) / 1000.0;
-    data.salinity = round(data.salinity * 1000.0) / 1000.0;
+    data.turbidity = round(data.turbidity * 1000.0) / 1000.0;   //MUST BE BEFORE PH
     data.pH = round(data.pH * 1000.0) / 1000.0;
-    data.oxygenLevel = round(data.oxygenLevel * 1000.0) / 1000.0;
+    data.oxygenLevel = round(data.oxygenLevel * 1000.0) / 1000.0;   //MUST BE BEFORE EC
     data.tds = round(data.tds * 1000.0) / 1000.0;
-    data.ec = round(data.ec*1000.0) / 1000.0; 
+    data.ec = round(data.ec*1000.0) / 1000.0;
+    data.salinity = round(data.salinity * 1000.0) / 1000.0;     //MUST BE LAST
     data.humidity = round(data.humidity * 1000.0) / 1000.0;
 
     Serial.println("Sensor readings complete.");

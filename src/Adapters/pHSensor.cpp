@@ -7,6 +7,7 @@ pHSensor::pHSensor() {};
 void pHSensor::begin()  {
     pH.begin();
     pinMode(EN, OUTPUT);
+    digitalWrite(EN, HIGH);
     wakeup();
 }
 

@@ -28,7 +28,7 @@
 struct SensorData {
     float humidity;
     bool humidityValid  = true;
-    float temperature ;
+    float temperature;
     bool temperatureValid= true;
     float turbidity;
     bool turbidityValid= true;

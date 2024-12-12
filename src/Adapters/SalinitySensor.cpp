@@ -10,8 +10,8 @@ void SalinitySensor::begin() {
     bool calibrated, tempComp, kFactor;
     char parsedData[32];
     delay(500);
-    //pinMode(EN_S, OUTPUT);
-    //digitalWrite(EN_S, HIGH);
+    pinMode(EN_S, OUTPUT);
+    digitalWrite(EN_S, HIGH);
     
     ec.send_cmd("Cal,?");
     delay(500);
@@ -104,8 +104,9 @@ bool SalinitySensor::readSalinity(float* salinity) {
     //     EnableDisableSingleReading(SAL, 1);
 
     // }
-    //pinMode(EN_S, OUTPUT);
-    //digitalWrite(EN_S, HIGH);
+    pinMode(EN_S, OUTPUT);
+    digitalWrite(EN_S, HIGH);
+
     delay(1200);
     ec.send_cmd("R");
     delay(600);
@@ -113,6 +114,7 @@ bool SalinitySensor::readSalinity(float* salinity) {
     // Serial.print("RAW salinity Read: ");
     // Serial.println(ec_data);
 
+    digitalWrite(EN_S, LOW);
     if (ec_data[0] != '\0') {
         *salinity = atof(ec_data);
         return true;
@@ -128,7 +130,7 @@ bool SalinitySensor::readTDS(float* salinity){
     EnableDisableSingleReading(SAL, 0);
     EnableDisableSingleReading(TDS, 1);
 
-    //digitalWrite(EN_S, HIGH);
+    digitalWrite(EN_S, HIGH);
     delay(600);
     ec.send_cmd("R");
     delay(600);
@@ -148,7 +150,7 @@ bool SalinitySensor::readEC(float* salinity){
     EnableDisableSingleReading(EC, 0);
     EnableDisableSingleReading(EC, 1);
 
-    //digitalWrite(EN_S, HIGH);
+    digitalWrite(EN_S, HIGH);
     delay(600);
     ec.send_cmd("R");
     delay(600);
