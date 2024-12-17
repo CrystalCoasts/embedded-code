@@ -2,15 +2,17 @@
 
 TempSensor& temp = TempSensor::Get();
 
-
 /**
  * Initializing the sensors instances for temperature and humidity
 **/
 TempSensor::TempSensor():
+    
     dht(DHTPIN,DHTTYPE),
     oneWire(ONE_WIRE_BUS),
     sensors(&oneWire)
+
     {}
+    
 
 TempSensor& TempSensor::Get(){
     static TempSensor instance;
@@ -20,6 +22,13 @@ TempSensor& TempSensor::Get(){
 void TempSensor::begin(){
     dht.begin();
     sensors.begin();
+
+    
+}
+
+bool TempSensor::readTemp(TEMP tempScale, float* temperature)   {
+
+    return true;
 }
 
 bool TempSensor::readHumidity(float* humidity) {
@@ -46,7 +55,7 @@ bool TempSensor::readTemperature(TEMP tempScale, float* temperature) {
     }
 
     sensors.requestTemperatures(); // Request temperature readings
-
+    Serial.println(sensors.requestTemperatures());
     switch (tempScale) {
         case CELSIUS:
             *temperature = sensors.getTempCByIndex(0); // Read temperature in Celsius
@@ -67,4 +76,8 @@ bool TempSensor::readTemperature(TEMP tempScale, float* temperature) {
     }
 
     return true; // Successful read
+}
+
+int TempSensor::findDevices()   {
+    return 0;
 }

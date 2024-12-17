@@ -37,10 +37,7 @@
 
 // Surveyor_pH pH = Surveyor_pH(35);
 
-
-
-// void uploadData(String data);
-
+// //void uploadData(String data);
 // void sdBegin();
 
 // // Status functions
@@ -58,8 +55,6 @@
 
 
 // void setup() {
-
-//     setCpuFrequencyMhz(80);
 //     Serial.begin(115200);
 //     Wire.begin();
 //     // Initialize SPIFFS
@@ -76,31 +71,27 @@
 //     // Initialize sensors
 //     temp.begin();
 //     tbdty.begin();
-//     //tbdty.calibrate();
+//     tbdty.calibrate();
 //     sal.begin();
 //     sal.EnableDisableSingleReading(SAL, 1);
-//     //sal.EnableDisableSingleReading(TDS,1);
+//     sal.EnableDisableSingleReading(TDS,1);
 //     DO.begin();
 //     phGloabl.begin();
 
-//     SPI.begin(18, 19, 23, 5);
-//     SPI.setDataMode(SPI_MODE0);
-//     if(!SD.begin(SdSpiConfig(5, SHARED_SPI, SD_SCK_MHZ(16)))){
-//         Serial.println("Card Mount Failed");
+//     // SPI.begin(18, 19, 23, 5);
+//     // SPI.setDataMode(SPI_MODE0);
+//     // if(!SD.begin(SdSpiConfig(5, SHARED_SPI, SD_SCK_MHZ(16)))){
+//     //     Serial.println("Card Mount Failed");
         
-//     }else   {
-//         Serial.println("Card mount sucessful!");
-//         cardMount = true;
-//     } 
+//     // }else   {
+//     //     Serial.println("Card mount sucessful!");
+//     //     cardMount = true;
+//     // } 
 
 //     // Initialize WiFi
-//     WiFi.begin(SSID, PASSWD);
+//     //WiFi.begin(SSID, PASSWD);
 
 //     rtc_begin();
-
-
-
-
 // }
 
 // void loop() {
@@ -131,27 +122,27 @@
 
 //     jsonPayload= prepareJsonPayload(data);
 //     csvPayLoad = prepareCSVPayload(data);
-//     saveDataToJSONFile(SD, jsonPayload);
-//     saveCSVData(SD, csvPayLoad);
+//     //saveDataToJSONFile(SD, jsonPayload);
+//     //saveCSVData(SD, csvPayLoad);
 
-//     printLocalTime();
+//     //printLocalTime();
 
 // }
 
 
-// void uploadData(String jsonData) {
-//     if (WiFi.status() == WL_CONNECTED) {
-//         Serial.println("Sending to Google.");
-//         // Serial.print(jsonData);
-//         HTTPClient http;
-//         http.begin(WEB_APP_URL);
-//         int httpResponseCode = http.POST(jsonData);
-//         http.addHeader("Content-Type", "application/json");
-//         http.end();
-//     } else {
-//         Serial.println("WiFi is not connected. Skipping data upload.");
-//     }
-// }
+// // void uploadData(String jsonData) {
+// //     if (WiFi.status() == WL_CONNECTED) {
+// //         Serial.println("Sending to Google.");
+// //         // Serial.print(jsonData);
+// //         HTTPClient http;
+// //         http.begin(WEB_APP_URL);
+// //         int httpResponseCode = http.POST(jsonData);
+// //         http.addHeader("Content-Type", "application/json");
+// //         http.end();
+// //     } else {
+// //         Serial.println("WiFi is not connected. Skipping data upload.");
+// //     }
+// // }
 
 
 // void blinkLED(int delayTime) {

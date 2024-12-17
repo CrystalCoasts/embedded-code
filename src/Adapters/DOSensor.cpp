@@ -12,15 +12,22 @@ DOSensor &DOSensor::get()
 }
 
 void DOSensor::begin()
-{
+{   
+    pinMode(EN_O, OUTPUT);
+    digitalWrite(EN_O, HIGH);
     int calibrated = 0, tempComp = 0, salComp = 0;
     char parsedData[32];
     delay(500);
 
-     if (parseValue(ec_data, parsedData, "?Cal")) {
-        Serial.println("Calibration profile detected.");
-        calibrated = (atoi(parsedData) != 0);
-    }
+    // if (parseValue(ec_data, parsedData, "?Cal")) {
+    //     Serial.println("Calibration profile detected.");
+    //     calibrated = (atoi(parsedData) != 0);
+    // }
+
+    // Sends a calibration command to calibrate DO to atmospheric oxygen levels
+    // ec2.send_cmd("Cal");
+    // delay(1300);
+    // Serial.println("DO Calibration Complete")
 
     ec2.send_cmd("T,?");
     delay(500);
@@ -54,6 +61,8 @@ void DOSensor::begin()
 
 bool DOSensor::readDO(float* DO, float salinity, float temp) {
 
+    digitalWrite(EN_O, HIGH);
+    delay(300);
     //must send salinity and temp for proper reading
     String command = "S," + String(salinity) + ",ppt";
     ec2.send_cmd(command.c_str());
@@ -67,6 +76,7 @@ bool DOSensor::readDO(float* DO, float salinity, float temp) {
     ec2.receive_cmd(ec_data, sizeof(ec_data));
     ec2.send_cmd("Sleep");
     delay(300);
+    //digitalWrite(EN_O, LOW);
     // Serial.print("RAW salinity Read: ");
     // Serial.println(ec_data);
 

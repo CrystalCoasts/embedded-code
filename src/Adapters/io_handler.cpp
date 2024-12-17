@@ -1,7 +1,11 @@
+#include <Arduino.h>
 #include "io_handler.h"
 #include "rtc_handler.h"
 #include <HTTPClient.h>
 #include <WiFi.h>
+#include "TempSensor.h"
+#include "dallasTemperature.h"
+#include <Adafruit_MCP23X17.h>
 
 // extern bool isConnected;
 
@@ -28,28 +32,63 @@ const char* KEY_SECOND = "Second";
 extern const char* JSON_DIR_PATH ;
 extern const char* CSV_DIR_PATH ;
 
-
 void readSensorData(SensorData &data)
 {
 
     Serial.println("Reading sensor data...");
-    data.temperatureValid = temp.readTemperature(FAHRENHEIT, &data.temperature);
+    pinMode(40,OUTPUT);
+    digitalWrite(40,HIGH);
+    byte error, address;
+    int nDevices;
+    Serial.println("Scanning...");
+    nDevices = 0;
+    for(address = 0; address < 127; address++ ) {
+        Wire.beginTransmission(address);
+        error = Wire.endTransmission();
+        if (error == 0) {
+        Serial.print("I2C device found at address 0x");
+        if (address<16) {
+            Serial.print("0");
+        }
+        Serial.println(address,HEX);
+        nDevices++;
+        }
+        else if (error==4) {
+        Serial.print("Unknow error at address 0x");
+        if (address<16) {
+            Serial.print("0");
+        }
+        Serial.println(address,HEX);
+        }    
+    }
+    if (nDevices == 0) {
+        Serial.println("No I2C devices found\n");
+    }
+    else {
+        Serial.println("done\n");
+    }
+
+
     data.turbidityValid = tbdty.readTurbidity(&data.turbidity);
-    data.salinityValid = sal.readSalinity(&data.salinity);
-    data.tdsValid = sal.readTDS(&data.tds);
     data.pHValid = phGloabl.readpH(&data.pH);
     data.oxygenLevelValid = DO.readDO(&data.oxygenLevel, data.salinity, data.temperature);
+    data.ecValid = sal.readEC(&data.ec);
+    data.tdsValid = sal.readTDS(&data.tds);
+    data.salinityValid = sal.readSalinity(&data.salinity);
+
+    data.temperatureValid = temp.readTemperature(FAHRENHEIT, &data.temperature);
     data.humidityValid = temp.readHumidity(&data.humidity);
 
-
+  
 
     // Round readings
     data.temperature = round(data.temperature * 1000.0) / 1000.0;
-    data.turbidity = round(data.turbidity * 1000.0) / 1000.0;
-    data.salinity = round(data.salinity * 1000.0) / 1000.0;
+    data.turbidity = round(data.turbidity * 1000.0) / 1000.0;   //MUST BE BEFORE PH
     data.pH = round(data.pH * 1000.0) / 1000.0;
-    data.oxygenLevel = round(data.oxygenLevel * 1000.0) / 1000.0;
+    data.oxygenLevel = round(data.oxygenLevel * 1000.0) / 1000.0;   //MUST BE BEFORE EC
     data.tds = round(data.tds * 1000.0) / 1000.0;
+    data.ec = round(data.ec*1000.0) / 1000.0;
+    data.salinity = round(data.salinity * 1000.0) / 1000.0;     //MUST BE LAST
     data.humidity = round(data.humidity * 1000.0) / 1000.0;
 
     Serial.println("Sensor readings complete.");
@@ -92,6 +131,8 @@ void printDataOnCLI(const SensorData& data){
     toPrint += "+-----------------------+-----------------------+\n";
     toPrint+= "|TDS: "+String(data.tds,3)+"\n";
     toPrint += "+-----------------------+-----------------------+\n";
+    toPrint+= "|EC: "+String(data.ec,3)+"\n";
+    toPrint += "+-----------------------+-----------------------+\n";
     toPrint+= "|Oxigen Level: "+String(data.oxygenLevel,3)+"\n";
     toPrint += "+-----------------------+-----------------------+\n";
     toPrint+= "|PH: "+String(data.pH,3)+"\n";
@@ -108,6 +149,7 @@ void validateSensorReadings(SensorData& data) {
     data.turbidityValid = !isnan(data.turbidity) && data.turbidity >= 0;
     data.salinityValid = !isnan(data.salinity) && data.salinity >= 0;
     data.tdsValid = !isnan(data.tds) && data.tds >= 0;
+    data.ecValid = !isnan(data.ec) && data.ec >= 0;
     data.pHValid = !isnan(data.pH) && data.pH >= 0;
     data.oxygenLevelValid = !isnan(data.oxygenLevel) && data.oxygenLevel >= 0;
 }
@@ -139,21 +181,24 @@ String prepareCSVPayload(const SensorData& data)    {
     const tm& timeinfo = get_current_time();
     return String(data.humidity, 3) + ", " + String(data.temperature, 3) +
         ", " + String(data.turbidity, 3) + ", " + String(data.salinity, 3) + 
-        ", " + String(data.tds, 3) + ", " + String(data.pH, 3) + ", " +
-        String(data.oxygenLevel, 3) + ", " + (timeinfo.tm_mon+1) + ", " +
-        timeinfo.tm_mday + ", " + (timeinfo.tm_year) + ", " + timeinfo.tm_hour +
-        ":" + timeinfo.tm_min + ":" + timeinfo.tm_sec;   
+        ", " + String(data.tds, 3) + ", " + String(data.ec, 3) + ", "
+        ", " + String(data.pH, 3) + ", " +
+        String(data.oxygenLevel, 3) + ", " + 
+        (timeinfo.tm_mon+1) + ", " +
+        timeinfo.tm_mday + ", " + 
+        (timeinfo.tm_year) + ", " + 
+        timeinfo.tm_hour + ":" + timeinfo.tm_min + ":" + timeinfo.tm_sec;   
 }
 
-bool saveCSVData(SdFat32 &SD, const String& data) {
+bool saveCSVData(fs::FS &fs, const String& data) {
     if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
         struct tm timeinfo;
         Serial.println("Saving data to CSV file...");
-        File32 file;
 
         String directoryPath = CSV_DIR_PATH;
-        if (!SD.exists(directoryPath)) {
-            SD.mkdir(directoryPath);
+        File root = fs.open(directoryPath);
+        if (!root) {
+            fs.mkdir(directoryPath);
         }
 
         String filename;
@@ -162,25 +207,24 @@ bool saveCSVData(SdFat32 &SD, const String& data) {
             filename = directoryPath + "/unknown-time.csv";
             // return false;
         }
-
         else {
             filename = String(directoryPath) + "/" + (timeinfo.tm_mon+1) + '-' + timeinfo.tm_mday + '-' + (timeinfo.tm_year) + "-data.csv";
         }    
-        
-        if(!SD.open(filename, O_WRITE | O_APPEND))    {       //if cant open file to append/doesn't exist, create said file and write the headers
-            file = SD.open(filename, O_WRITE | O_CREAT);
+
+        File file;
+        if(!(file = fs.open(filename, FILE_APPEND)))    {       //if cant open file to append/doesn't exist, create said file and write the headers
             String header = "Humidity, Temperature, Turbidity, Salinity, TDS, pH, Disolved Oxygen, Month, Day, Year, Time";
+            file = fs.open(filename, FILE_WRITE);
             file.println(header);
         }
-        else{
-            file = SD.open(filename, O_WRITE | O_APPEND);
-        }
-        if (file.println(data)) {
+
+        if(file.println(data)) {
                 Serial.println("Data saved successfully.");
         } 
         else {
             Serial.println("Failed to save data.");
         }
+        root.close();
         file.close();
         xSemaphoreGive(sdCardMutex);
         return true;
@@ -190,39 +234,45 @@ bool saveCSVData(SdFat32 &SD, const String& data) {
     }
 }
 
-
-
-
-bool saveJsonData(SdFat32 &SD, const String &data) {
+bool saveJsonData(fs::FS &fs, const String &data) {
     if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
         struct tm timeinfo;
         Serial.println("Saving data to JSON file...");
         Serial.println(data);
-        File32 file;
+        File root;
 
         if (!getLocalTime(&timeinfo)) {
             Serial.println("Failed to get local time.");
             xSemaphoreGive(sdCardMutex);
-            return false;
         }
 
         String directoryPath = JSON_DIR_PATH;
-        if (!SD.exists(directoryPath)) {
-            SD.mkdir(directoryPath);
+        root = fs.open(JSON_DIR_PATH);
+        if (!root) {
+            fs.mkdir(directoryPath);
         }
-
-        String filename = String(directoryPath) + "/" + (timeinfo.tm_mon + 1) + '-' + timeinfo.tm_mday + '-' + (timeinfo.tm_year + 1900) + "-data.json";
-        file = SD.open(filename, O_WRITE | O_CREAT | O_APPEND);
-        if (file) {
+        
+        File file;
+        String filename;
+        if (!getLocalTime(&timeinfo)) {
+            Serial.println("Failed to get local time.");
+            Serial.println("Data will not be saving in JSON format.");
+        }else   {
+            filename = String(directoryPath) + "/" + (timeinfo.tm_mon + 1) + '-' + timeinfo.tm_mday + '-' + (timeinfo.tm_year) + "-data.json";
+            if (!(file = fs.open(filename, FILE_APPEND))) {
+                    Serial.println("Failed to open JSON file for writing.");
+                    file = fs.open(filename, FILE_WRITE);
+            }
             if (file.println(data)) {
                 Serial.println("Data saved successfully.");
             } else {
                 Serial.println("Failed to save data.");
+                Serial.println(file.println());
             }
-            file.close();
-        } else {
-            Serial.println("Failed to open JSON file for writing.");
         }
+        
+        root.close();
+        file.close();
         xSemaphoreGive(sdCardMutex);
         return true;
     } else {
@@ -232,23 +282,21 @@ bool saveJsonData(SdFat32 &SD, const String &data) {
 }
 
 
+String readDataFromSD(fs::FS &fs, const char* fileName) {
+    if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
+        File file = fs.open(fileName, FILE_READ);
+        if (!file) {
+            Serial.println("Failed to open file for reading");
+            xSemaphoreGive(sdCardMutex);
+            return String();
+        }
 
-
-// String readDataFromSD(SdFat32 &SD, const char* fileName) {
-//     if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
-//         File32 file = SD.open(fileName, O_READ);
-//         if (!file) {
-//             Serial.println("Failed to open file for reading");
-//             xSemaphoreGive(sdCardMutex);
-//             return String();
-//         }
-
-//         String data = file.readStringUntil('\n');
-//         file.close();
-//         xSemaphoreGive(sdCardMutex);
-//         return data;
-//     } else {
-//         Serial.println("Failed to obtain SD Card mutex for reading.");
-//         return String();
-//     }
-// }
+        String data = file.readStringUntil('\n');
+        file.close();
+        xSemaphoreGive(sdCardMutex);
+        return data;
+    } else {
+        Serial.println("Failed to obtain SD Card mutex for reading.");
+        return String();
+    }
+}

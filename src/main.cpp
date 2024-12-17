@@ -7,6 +7,11 @@
 #include <Preferences.h>
 #include <esp_sleep.h>
 
+#include "soc/rtc_cntl_reg.h"
+#include "soc/rtc.h"
+#include "driver/rtc_io.h"
+#include "driver/i2c.h"
+
 
 
 // Sensor headers
@@ -14,6 +19,8 @@
 #include "TurbiditySensor.h"
 #include "SalinitySensor.h"
 #include "pHSensor.h"
+#include "ioExtender.h"
+#include "Adafruit_MCP23X17.h"
 
 //helpers
 #include "io_handler.h" //this includes SdFat32
@@ -51,21 +58,23 @@ const char* CSV_DIR_PATH = "/csvFiles";
 //battery values
 const uint16_t BATTERY_CHARGE = 10000; // 10000 mAh
 const uint8_t BATTERY_DRAW_SLEEP = 60; // 60 mA
-const uint8_t BATTERY_DRAW_ACTIVE = 180; // 180 mA
+const uint8_t BATTERY_DRAW_ACTIVE = 190; // 190 mA
+
+bool sdON = false;
 
 // Global variables for battery management
 Preferences prefs;
-volatile uint16_t batteryLevel =BATTERY_CHARGE ; // Default battery level
+volatile uint16_t batteryLevel = BATTERY_CHARGE ; // Default battery level
 unsigned long lastUpdateTime = 0;
 
 
 //timers
 // volatile uint64_t powerOnTimer = (3600 * 1000) * 2;  // 2 hours
-const uint64_t SYSTEM_POWER_ON = 2 * HOUR_US;
+const uint64_t SYSTEM_POWER_ON = 25 * MINUTE_US;
 volatile uint64_t USER_POWER_ON = 5 * HOUR_US;
 
-uint64_t SYSTEM_POWER_OFF = 5* MINUTE_MS;  
-const uint64_t SENSOR_TASK_TIMER = HALF_MINUTE_MS; // 30 seconds, for tasks
+uint64_t SYSTEM_POWER_OFF = 30 * MINUTE_MS;  
+const uint64_t SENSOR_TASK_TIMER =  5000;  //HALF_MINUTE_MS; // 30 seconds, for tasks
 
 //tasks semaphores
 SemaphoreHandle_t sdCardMutex;
@@ -95,12 +104,17 @@ void stopUploadTask();
 void stopSensorTask();
 void powerOffSequence();
 
+// OneWire oneWire(41);
+// DallasTemperature sensors(&oneWire);
+Adafruit_MCP23X17 mcp2;
 
 void setup() {
-    setCpuFrequencyMhz(80);
+    //setCpuFrequencyMhz(80);
     Serial.begin(115200);
-    
-    Wire.begin(); // initialize early to ensure sensors can use it
+    //sensors.begin();
+
+    Wire.begin(15, 16);
+    //Wire.begin(); // initialize early to ensure sensors can use it
     // Initialize WiFi we need to continue even if wifi fails
     WiFi.begin(SSID, PASSWD);
     if (WiFi.status() == WL_CONNECTED){
@@ -109,31 +123,112 @@ void setup() {
         isConnected = true;
     }
 
+    int i2c_master_port = 0;
+    i2c_config_t conf = {
+        .mode = I2C_MODE_MASTER,
+        .sda_io_num = 15,         // select GPIO specific to your project
+        .scl_io_num = 16,         // select GPIO specific to your project
+        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+        .clk_flags = 0,                          // you can use I2C_SCLK_SRC_FLAG_* flags to choose i2c source clock here
+    };
+    i2c_driver_install(I2C_NUM_MAX, I2C_MODE_MASTER, 500, 500, 0);
+
     //setup spi 
-    SPI.begin(18, 19, 23, 5);
-    SPI.setDataMode(SPI_MODE0);
+    // SPI.begin(18, 19, 23, 5);
+    // SPI.setDataMode(SPI_MODE0);
 
     // Initialize sensors before wifi
+
+    //mcp.begin_I2C();
     temp.begin();
     tbdty.begin();
     phGloabl.begin();
     DO.begin();
-    sal.begin(); //also tds
+    sal.begin(); //also tds & ec
+    pinMode(40,OUTPUT);
+    digitalWrite(40,HIGH);
+    pinMode(38,OUTPUT);
+    digitalWrite(38,HIGH);
+    delay(200);
+    // mcpGlobal.begin();
+    // mcpGlobal.pinMode(0,OUTPUT);
+    // mcpGlobal.digitalWrite(0,HIGH);
+    mcp2.begin_I2C();
+    mcp2.pinMode(8,OUTPUT);
+    mcp2.digitalWrite(8,HIGH);
+  
+
+    // digitalWrite(40,LOW);
+    // delay(100);
+    // digitalWrite(40,HIGH);
+
+    // uncomment appropriate mcp.begin
+    // if (!mcp.begin_I2C()) {
+    // //if (!mcp.begin_SPI(CS_PIN)) {
+    //     Serial.println("Error.");
+    // }
+
+    // // configure pin for output
+    // mcp.pinMode(0, OUTPUT);
+    // mcp.digitalWrite(0,HIGH);
+
+    //sal.calibrate();
 
     // Create mutexes
     sdCardMutex = xSemaphoreCreateMutex();
     sensorMutex = xSemaphoreCreateMutex();
     
     // Initialize SD card
-    if(!SD.begin(SdSpiConfig(5, SHARED_SPI, SD_SCK_MHZ(16)))){
+
+    SD_MMC.setPins(PIN_SD_CLK, PIN_SD_CMD, PIN_SD_D0);
+    if (!SD_MMC.begin("/sdcard", true, true))
+    {
         String msg = SD_TAG + String (" Card Mount Failed");
         Serial.println(msg);
     }
-    else  {
-        String msg = SD_TAG + String (" Card mount sucessful!");
-        Serial.println(msg);
-        cardMount = true;
-    }  
+    uint8_t cardType = SD_MMC.cardType();
+
+        if (cardType == CARD_NONE)
+    {
+        Serial.println("No SD_MMC card attached");
+    }
+
+    Serial.print("SD_MMC Card Type: ");
+    if (cardType == CARD_MMC)
+    {
+        Serial.println("MMC");
+    }
+    else if (cardType == CARD_SD)
+    {
+        Serial.println("SDSC");
+    }
+    else if (cardType == CARD_SDHC)
+    {
+        Serial.println("SDHC");
+    }
+    else
+    {
+        Serial.println("UNKNOWN");
+    }
+
+    uint64_t cardSize = SD_MMC.cardSize() / (1024 * 1024);
+    Serial.printf("SD_MMC Card Size: %lluMB\n", cardSize);
+
+    
+    // sensors.requestTemperatures(); 
+    // Serial.println("Temp:" + int(sensors.getTempCByIndex(0)));
+
+
+    // if(!SD.begin(SdSpiConfig(5, SHARED_SPI, SD_SCK_MHZ(16)))){
+    //     String msg = SD_TAG + String (" Card Mount Failed");
+    //     Serial.println(msg);
+    //     cardMount = false;
+    // }
+    // else  {
+    //     String msg = SD_TAG + String (" Card mount sucessful!");
+    //     Serial.println(msg);
+    //     cardMount = true;
+    // }  
     
   
     //other system initializations
@@ -176,10 +271,20 @@ void sensorTask(void *pvParameters) {
         readSensorData(data);
         printDataOnCLI(data);
         
-        if (!saveCSVData(SD, prepareCSVPayload(data))) {
+        // if(!cardMount)  {
+        //     SD_MMC.begin("/sdcard", true, true);
+        //     String msg = SD_TAG + String (" Card Mount Failed");
+        //     Serial.println(msg);
+        // }
+        // else  {
+        //     cardMount = true;
+        // }  
+
+        if (!saveCSVData(SD_MMC, prepareCSVPayload(data))) {
             Serial.println("[TASKS] Failed to save CSV data.");
+            cardMount = false;
         }
-        if (!saveJsonData(SD, prepareJsonPayload(data))) {
+        if (!saveJsonData(SD_MMC, prepareJsonPayload(data))) {
             Serial.println("[TASKS] Failed to save JSON data.");
         }
 
@@ -199,24 +304,24 @@ void uploadTask(void *pvParameters) {
             continue;
         }
 
-        SdFile root, file;
-        if (!root.open(JSON_DIR_PATH, O_READ)) {
+        File root, file;
+        if (!(root = SD_MMC.open(JSON_DIR_PATH, FILE_READ))) {
             Serial.println("Failed to open directory");
             vTaskDelay(pdMS_TO_TICKS(10000)); // Wait for 10 seconds before retrying
             continue;
         }
 
-        char fileName[100];
-        while (file.openNext(&root, O_READ)) {
-            if (file.isDir()) {
+        String fileName;
+        while (file = root.openNextFile()) { // openNext(&root, O_READ)) { 
+            if (file.isDirectory()) {
                 file.close();
                 continue;
             }
 
-            file.getName(fileName, sizeof(fileName));
+            fileName = file.name();
             if (String(fileName).startsWith(".") || !String(fileName).endsWith(".json")) {
                 file.close();
-                file.remove();
+                SD_MMC.remove(fileName);
                 continue;
             }
 
@@ -242,7 +347,7 @@ void uploadTask(void *pvParameters) {
 
             file.close();
             if (allLinesUploaded) {
-                SD.remove(String(JSON_DIR_PATH) + "/" + String(fileName)); // Ensure the path is correct
+                SD_MMC.remove(String(JSON_DIR_PATH) + "/" + String(fileName)); // Ensure the path is correct
                 Serial.println(String(fileName) + " uploaded and deleted successfully.");
             } else {
                 Serial.println("Not all lines in the file were uploaded successfully.");
@@ -298,6 +403,8 @@ void powerOffSequence() {
     prefs.putUInt("batteryLevel", batteryLevel);
     prefs.end();
 
+
+
     // Save the timer settings to NVS using rtc_handler's namespace
     saveTimerSettings(USER_POWER_ON);
     Serial.println("Entering deep sleep...");
@@ -323,6 +430,8 @@ void stopSensorTask() {
     if (sensorTaskRunning) {
         sensorTaskRunning = false; // This will cause the task to exit its loop and clean up
     }
+    digitalWrite(38, LOW);
+    gpio_hold_en(GPIO_NUM_38);
 }
 
 void readBatteryTask(void *pvParameters) {

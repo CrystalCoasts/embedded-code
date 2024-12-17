@@ -1,14 +1,20 @@
 #include "TurbiditySensor.h"
 #include <Arduino.h>
+#include <esp_adc_cal.h>
+#include <esp32-hal-adc.h>
 
 TurbiditySensor& tbdty = TurbiditySensor::Get();
 
 TurbiditySensor::TurbiditySensor() {}
 
 void TurbiditySensor::begin() {
+
     EEPROM.get(EEPROM_VCLEAR_ADDRESS, vClear); // Retrieve the vClear from EEPROM
     analogReadResolution(12); // Set ADC resolution to 12-bit
     pinMode(EN, OUTPUT);
+    wakeup();
+    //pinMode(T_ANALOG_PIN, INPUT);  //GPIO2
+    adcAttachPin(T_ANALOG_PIN);    //GPIO2
     wakeup();
 }
 
@@ -21,6 +27,7 @@ float TurbiditySensor::calibrate() {
     cumulativeRead = 0;
     for (int i = 0; i < READ_SAMPLES; ++i) {
         cumulativeRead += analogRead(T_ANALOG_PIN);
+;
         delay(100); // Delay for stability
     }
     float sensorVoltage = static_cast<float>(cumulativeRead) / READ_SAMPLES * (VREF / ADC_DIGITAL);
@@ -33,7 +40,6 @@ float TurbiditySensor::calibrate() {
 
 bool TurbiditySensor::readTurbidity(float* turbidity) {
     wakeup();
-
     if (turbidity == nullptr) {
         return false; // Invalid pointer
     }

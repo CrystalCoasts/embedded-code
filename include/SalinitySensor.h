@@ -14,10 +14,12 @@ public:
     void begin();
     void EnableDisableSingleReading(uint8_t readOption, uint8_t data);
     bool readSalinity(float* salinity);
-    bool readTDS(float* salinity);
+    bool readTDS(float* tds);
+    bool readEC(float* ec);
     void DisableAllReadings();
+    void calibrate();
     void sleep();
-    
+    static constexpr short EN_S = 38;
 
 private:
     String ecName = "SAL";
