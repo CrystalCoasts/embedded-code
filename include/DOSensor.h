@@ -17,7 +17,7 @@ class DOSensor    {
         static DOSensor& get();
         void begin();
         bool readDO(float* DO, float salinity, float temp);
-        static constexpr short EN_O = 38;  //used to turn off the circuit to save power (~2.9mA)
+        static constexpr short EN_O = 27;  //used to turn off the circuit to save power (~2.9mA)
 
 
     private:

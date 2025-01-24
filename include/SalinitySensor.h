@@ -19,7 +19,7 @@ public:
     void DisableAllReadings();
     void calibrate();
     void sleep();
-    static constexpr short EN_S = 38;
+    static constexpr short EN_S = 27;
 
 private:
     String ecName = "SAL";

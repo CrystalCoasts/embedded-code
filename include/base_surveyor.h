@@ -46,7 +46,7 @@ class Surveyor_Base{
 
     protected:
 	
-		uint8_t pin = A0;
+		uint8_t pin = 14;
         
 		static const int volt_avg_len = 1000;
         static const uint8_t EEPROM_SIZE_CONST = 16;

@@ -1,12 +1,14 @@
 #ifndef DATA_HANDLER_H
 #define DATA_HANDLER_H
 
+#define TINY_GSM_MODEM_SIM7000SSL
+#define TINY_GSM_RX_BUFFER 1024 // Set RX buffer to 1Kb
+
 #include <iostream>
 #include <Arduino.h>
 #include <time.h>
-#include "SdFat.h"
-#include <SD_MMC.h>
-
+#include "SD.h"
+#include "TinyGsmClient.h"
 #include <ArduinoJson.h>
 
 #include "TempSensor.h"
@@ -19,9 +21,9 @@
 #define IO_RXD2 47
 #define IO_TXD2 48
 
-#define PIN_SD_CMD 11
-#define PIN_SD_CLK 12
-#define PIN_SD_D0 13
+// #define PIN_SD_CMD 13
+// #define PIN_SD_CLK 14
+// #define PIN_SD_D0 13
 
 
 
@@ -54,7 +56,9 @@ bool uploadData(String jsonData);
 //json
 String prepareJsonPayload(const SensorData& data);
 bool saveJsonData(fs::FS &fs, const String &data);
+
 //csv
+
 String prepareCSVPayload(const SensorData& data);
 bool saveCSVData(fs::FS &fs, const String& data);
 String readDataFromSD(fs::FS &fs, const char* fileName);

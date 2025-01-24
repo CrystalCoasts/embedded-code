@@ -12,8 +12,6 @@
 #include "driver/rtc_io.h"
 #include "driver/i2c.h"
 
-
-
 // Sensor headers
 #include "TempSensor.h"
 #include "TurbiditySensor.h"
@@ -44,8 +42,6 @@
 //instance declarations
 const char* SSID = "seawall";
 const char* PASSWD = "12345678";
-
-SdFat32 SD;
 
 //status variables
 bool cardMount = false;
@@ -106,38 +102,183 @@ void powerOffSequence();
 
 // OneWire oneWire(41);
 // DallasTemperature sensors(&oneWire);
-Adafruit_MCP23X17 mcp2;
+//Adafruit_MCP23X17 mcp2;
+
+#define SD_MISO     2
+#define SD_MOSI     15
+#define SD_SCLK     14
+#define SD_CS       13
+
+bool saveCSVData(fs::FS &fs, const String& data) {
+    if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
+        struct tm timeinfo;
+
+        Serial.println("Saving data to CSV file...");
+
+        
+        String directoryPath = CSV_DIR_PATH;
+        File file;
+        if(!fs.exists(directoryPath))  {
+            fs.mkdir(directoryPath);
+            Serial.println("made directory for csv!");
+        }
+
+        String filename;
+        if (!getLocalTime(&timeinfo)) {
+            Serial.println("Failed to get local time.");
+            filename = directoryPath + "/unknown-time.csv";
+            // return false;
+        }else   {
+            filename = directoryPath + "/" + String(timeinfo.tm_mon+1) + '-' + String(timeinfo.tm_mday) + '-' + String(timeinfo.tm_year) + "-data.csv";
+        }
+
+        file = fs.open(filename, FILE_APPEND);
+        if(!file)    {       //if cant open file to append/doesn't exist, create said file and write the headers
+            Serial.println("Couldnt open file to append/write. Creating new file");
+            String header = "Humidity, Temperature, Turbidity, Salinity, TDS, pH, Disolved Oxygen, Month, Day, Year, Time";
+            file = fs.open(filename, FILE_WRITE, true);
+            file.println(header);
+        }else{
+            Serial.println("Opened file for appending!");
+        }
+           
+        if(file.println(data)) {
+            Serial.println("Data saved successfully.");
+        } 
+        else {
+            Serial.println("Failed to save data.");
+        }
+        // if (file.println(data)) {
+        // File file;
+        // if(!(file = fs.open(filename, FILE_APPEND)))    {       //if cant open file to append/doesn't exist, create said file and write the headers
+            // String header = "Humidity, Temperature, Turbidity, Salinity, TDS, pH, Disolved Oxygen, Month, Day, Year, Time";
+            // file = fs.open(filename, FILE_WRITE);
+            // file.println(header);
+        // }
+
+        // if(file.println(data)) {
+        //         Serial.println("Data saved successfully.");
+        // } 
+        // else {
+        //     Serial.println("Failed to save data.");
+        // }
+        file.close();
+        xSemaphoreGive(sdCardMutex);
+        return true;
+    }else {
+        Serial.println("Failed to obtain SD Card mutex for writing.");
+        return false;
+    }
+}
+
+bool saveJsonData(fs::FS &fs, const String &data) {
+    if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
+        struct tm timeinfo;
+        Serial.println("Saving data to JSON file...");
+        Serial.println(data);
+        File file;
+
+        String directoryPath = JSON_DIR_PATH;
+        if (!fs.exists(directoryPath))
+            fs.mkdir(directoryPath);
+
+        // root = fs.open(JSON_DIR_PATH);
+        // if (!root) {
+        //     fs.mkdir(directoryPath);
+        // }
+        
+        String filename;
+        if (!getLocalTime(&timeinfo)) {
+            Serial.println("Failed to get local time.");
+            Serial.println("Data will not be saving in JSON format.");
+        }else   {
+            filename = String(directoryPath) + "/" + (timeinfo.tm_mon + 1) + '-' + timeinfo.tm_mday + '-' + (timeinfo.tm_year) + "-data.json";
+            if(!(file = fs.open(filename, FILE_APPEND))) {
+                Serial.println("Failed to open JSON file for writing.");
+                file = fs.open(filename, FILE_WRITE, true);
+            }
+
+            if (file.println(data)) {
+                Serial.println("Data saved successfully.");
+            } else {
+                Serial.println("Failed to save data.");
+                Serial.println(file.println());
+            }
+        }
+        file.close();
+        xSemaphoreGive(sdCardMutex);
+        return true;
+    } else {
+        Serial.println("Failed to obtain SD Card mutex for writing JSON.");
+        return false;
+    }
+}
+
+String readDataFromSD(fs::FS &fs, const char* fileName) {
+    if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
+        File file = fs.open(fileName, FILE_READ);
+        if (!file) {
+            Serial.println("Failed to open file for reading");
+            xSemaphoreGive(sdCardMutex);
+            return String();
+        }
+
+        String data = file.readStringUntil('\n');
+        file.close();
+        xSemaphoreGive(sdCardMutex);
+        return data;
+    } else {
+        Serial.println("Failed to obtain SD Card mutex for reading.");
+        return String();
+    }
+}
 
 void setup() {
     //setCpuFrequencyMhz(80);
     Serial.begin(115200);
     //sensors.begin();
 
-    Wire.begin(15, 16);
+    Wire.begin(21,22);
     //Wire.begin(); // initialize early to ensure sensors can use it
     // Initialize WiFi we need to continue even if wifi fails
-    WiFi.begin(SSID, PASSWD);
-    if (WiFi.status() == WL_CONNECTED){
-        String msg = SD_TAG + String (" WiFi connected");
-        Serial.println(msg);
-        isConnected = true;
-    }
+    // WiFi.begin(SSID, PASSWD);
+    // if (WiFi.status() == WL_CONNECTED){
+    //     String msg = SD_TAG + String (" WiFi connected");
+    //     Serial.println(msg);
+    //     isConnected = true;
+    // }
 
     int i2c_master_port = 0;
     i2c_config_t conf = {
         .mode = I2C_MODE_MASTER,
-        .sda_io_num = 15,         // select GPIO specific to your project
-        .scl_io_num = 16,         // select GPIO specific to your project
+        .sda_io_num = 21,         // select GPIO specific to your project
+        .scl_io_num = 22,         // select GPIO specific to your project
         .scl_pullup_en = GPIO_PULLUP_ENABLE,
         .clk_flags = 0,                          // you can use I2C_SCLK_SRC_FLAG_* flags to choose i2c source clock here
     };
     i2c_driver_install(I2C_NUM_MAX, I2C_MODE_MASTER, 500, 500, 0);
 
     //setup spi 
-    // SPI.begin(18, 19, 23, 5);
-    // SPI.setDataMode(SPI_MODE0);
 
+    // Initialize SD card
+    SPI.begin(SD_SCLK, SD_MISO, SD_MOSI, SD_CS);
+    //SPI.setDataMode(SPI_MODE0);
+    if(!SD.begin(SD_CS, SPI, 4000000))    {        //SdSpiConfig(SD_CS, SHARED_SPI, SD_SCK_MHZ(16))
+        Serial.println("SD Mount failed!");
+    }else{
+        Serial.println("SD Mount successful!");
+    }
+
+    File myfile = SD.open("/test.txt", FILE_APPEND);
+    if(!myfile) 
+        Serial.println("couldnt open txt file in root");
+    else{
+        Serial.println("Opened file and writing to it now");
+        myfile.println("Check check 123");
+        Serial.println("Finished!");
+    }   
     // Initialize sensors before wifi
+    myfile.close();
 
     //mcp.begin_I2C();
     temp.begin();
@@ -145,17 +286,17 @@ void setup() {
     phGloabl.begin();
     DO.begin();
     sal.begin(); //also tds & ec
-    pinMode(40,OUTPUT);
-    digitalWrite(40,HIGH);
-    pinMode(38,OUTPUT);
-    digitalWrite(38,HIGH);
-    delay(200);
+    // pinMode(40,OUTPUT);
+    // digitalWrite(40,HIGH);
+    // pinMode(38,OUTPUT);
+    // digitalWrite(38,HIGH);
+    // delay(200);
     // mcpGlobal.begin();
     // mcpGlobal.pinMode(0,OUTPUT);
     // mcpGlobal.digitalWrite(0,HIGH);
-    mcp2.begin_I2C();
-    mcp2.pinMode(8,OUTPUT);
-    mcp2.digitalWrite(8,HIGH);
+    // mcp2.begin_I2C();
+    // mcp2.pinMode(8,OUTPUT);
+    // mcp2.digitalWrite(8,HIGH);
   
 
     // digitalWrite(40,LOW);
@@ -174,45 +315,43 @@ void setup() {
 
     //sal.calibrate();
 
-    // Create mutexes
-    sdCardMutex = xSemaphoreCreateMutex();
-    sensorMutex = xSemaphoreCreateMutex();
     
-    // Initialize SD card
+    
 
-    SD_MMC.setPins(PIN_SD_CLK, PIN_SD_CMD, PIN_SD_D0);
-    if (!SD_MMC.begin("/sdcard", true, true))
-    {
-        String msg = SD_TAG + String (" Card Mount Failed");
-        Serial.println(msg);
-    }
-    uint8_t cardType = SD_MMC.cardType();
 
-        if (cardType == CARD_NONE)
-    {
-        Serial.println("No SD_MMC card attached");
-    }
+    // SD_MMC.setPins(PIN_SD_CLK, PIN_SD_CMD, PIN_SD_D0);
+    // if (!SD_MMC.begin("/SD", true, true))
+    // {
+    //     String msg = SD_TAG + String (" Card Mount Failed");
+    //     Serial.println(msg);
+    // }
+    // uint8_t cardType = SD_MMC.cardType();
 
-    Serial.print("SD_MMC Card Type: ");
-    if (cardType == CARD_MMC)
-    {
-        Serial.println("MMC");
-    }
-    else if (cardType == CARD_SD)
-    {
-        Serial.println("SDSC");
-    }
-    else if (cardType == CARD_SDHC)
-    {
-        Serial.println("SDHC");
-    }
-    else
-    {
-        Serial.println("UNKNOWN");
-    }
+    //     if (cardType == CARD_NONE)
+    // {
+    //     Serial.println("No SD_MMC card attached");
+    // }
 
-    uint64_t cardSize = SD_MMC.cardSize() / (1024 * 1024);
-    Serial.printf("SD_MMC Card Size: %lluMB\n", cardSize);
+    // Serial.print("SD_MMC Card Type: ");
+    // if (cardType == CARD_MMC)
+    // {
+    //     Serial.println("MMC");
+    // }
+    // else if (cardType == CARD_SD)
+    // {
+    //     Serial.println("SDSC");
+    // }
+    // else if (cardType == CARD_SDHC)
+    // {
+    //     Serial.println("SDHC");
+    // }
+    // else
+    // {
+    //     Serial.println("UNKNOWN");
+    // }
+
+    // uint64_t cardSize = SD_MMC.cardSize() / (1024 * 1024);
+    // Serial.printf("SD_MMC Card Size: %lluMB\n", cardSize);
 
     
     // sensors.requestTemperatures(); 
@@ -230,6 +369,9 @@ void setup() {
     //     cardMount = true;
     // }  
     
+    // Create mutexes
+    sdCardMutex = xSemaphoreCreateMutex();
+    sensorMutex = xSemaphoreCreateMutex();
   
     //other system initializations
 
@@ -272,7 +414,7 @@ void sensorTask(void *pvParameters) {
         printDataOnCLI(data);
         
         // if(!cardMount)  {
-        //     SD_MMC.begin("/sdcard", true, true);
+        //     SD_MMC.begin("/SD", true, true);
         //     String msg = SD_TAG + String (" Card Mount Failed");
         //     Serial.println(msg);
         // }
@@ -280,11 +422,11 @@ void sensorTask(void *pvParameters) {
         //     cardMount = true;
         // }  
 
-        if (!saveCSVData(SD_MMC, prepareCSVPayload(data))) {
+        if (!saveCSVData(SD, prepareCSVPayload(data))) {
             Serial.println("[TASKS] Failed to save CSV data.");
             cardMount = false;
         }
-        if (!saveJsonData(SD_MMC, prepareJsonPayload(data))) {
+        if (!saveJsonData(SD, prepareJsonPayload(data))) {
             Serial.println("[TASKS] Failed to save JSON data.");
         }
 
@@ -305,7 +447,7 @@ void uploadTask(void *pvParameters) {
         }
 
         File root, file;
-        if (!(root = SD_MMC.open(JSON_DIR_PATH, FILE_READ))) {
+        if (!(root = SD.open(JSON_DIR_PATH, FILE_READ))) {
             Serial.println("Failed to open directory");
             vTaskDelay(pdMS_TO_TICKS(10000)); // Wait for 10 seconds before retrying
             continue;
@@ -321,7 +463,7 @@ void uploadTask(void *pvParameters) {
             fileName = file.name();
             if (String(fileName).startsWith(".") || !String(fileName).endsWith(".json")) {
                 file.close();
-                SD_MMC.remove(fileName);
+                SD.remove(fileName);
                 continue;
             }
 
@@ -347,9 +489,9 @@ void uploadTask(void *pvParameters) {
 
             file.close();
             if (allLinesUploaded) {
-                SD_MMC.remove(String(JSON_DIR_PATH) + "/" + String(fileName)); // Ensure the path is correct
+                SD.remove(String(JSON_DIR_PATH) + "/" + String(fileName)); // Ensure the path is correct
                 Serial.println(String(fileName) + " uploaded and deleted successfully.");
-            } else {
+            } else {    
                 Serial.println("Not all lines in the file were uploaded successfully.");
             }
         }
@@ -430,8 +572,8 @@ void stopSensorTask() {
     if (sensorTaskRunning) {
         sensorTaskRunning = false; // This will cause the task to exit its loop and clean up
     }
-    digitalWrite(38, LOW);
-    gpio_hold_en(GPIO_NUM_38);
+    digitalWrite(27, LOW);
+    gpio_hold_en(GPIO_NUM_27);
 }
 
 void readBatteryTask(void *pvParameters) {
