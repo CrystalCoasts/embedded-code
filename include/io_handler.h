@@ -1,15 +1,12 @@
 #ifndef DATA_HANDLER_H
 #define DATA_HANDLER_H
 
-#define TINY_GSM_MODEM_SIM7000SSL
-#define TINY_GSM_RX_BUFFER 1024 // Set RX buffer to 1Kb
 
 #include <iostream>
 #include <Arduino.h>
 #include <time.h>
 #include "SD.h"
-#include "TinyGsmClient.h"
-#include <ArduinoJson.h>
+#include "ArduinoJson.h"
 
 #include "TempSensor.h"
 #include "TurbiditySensor.h"
@@ -51,6 +48,14 @@ void validateSensorReadings(SensorData& data);
 void printDataOnCLI(const SensorData& data);
 bool uploadData(String jsonData);
 
+/** Cellular Connectivity **/
+std::string sendData(String command);
+void modemRestart();
+void modemPowerOff();
+void modemPowerOn();
+void sendPostRequest(String jsonPayload, const char* server, const char* resource);
+void sendGetRequest();
+
 /** file interactions **/
 
 //json
@@ -58,7 +63,6 @@ String prepareJsonPayload(const SensorData& data);
 bool saveJsonData(fs::FS &fs, const String &data);
 
 //csv
-
 String prepareCSVPayload(const SensorData& data);
 bool saveCSVData(fs::FS &fs, const String& data);
 String readDataFromSD(fs::FS &fs, const char* fileName);

@@ -14,6 +14,10 @@ extern SemaphoreHandle_t sensorMutex;
 const char* DATA_URL = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.com/api/data";
 // const char* DATA_URL = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.com/api/test-data";
 
+const char server[]   = "https://d17e66a7-c349-4d03-9453-cf90701e7aaa.mock.pstmn.io";
+const char resource[] = "/post";
+const int  port       = 443;
+
 // Define these in a suitable header file or at the top of your source file
 const char* KEY_HUMIDITY = "humidity";
 const char* KEY_TEMPERATURE = "temperature";
@@ -100,15 +104,26 @@ void readSensorData(SensorData &data)
 
 
 bool uploadData(String jsonData) {
-    if (WiFi.status() != WL_CONNECTED) {
-        Serial.println("Not connected to WiFi. Data not uploaded.");
-        return false;
-    }
-    Serial.println("Uploading: "+jsonData);    
-    HTTPClient http;
-    http.begin(DATA_URL);
-    http.addHeader("Content-Type", "application/json");
-    int httpResponseCode = http.POST(jsonData);
+    int responseCode = 200;
+    #ifndef CELLULAR
+        if (WiFi.status() != WL_CONNECTED) {
+            Serial.println("Not connected to WiFi. Data not uploaded.");
+            return false;
+        }
+        Serial.println("Uploading: "+jsonData); 
+        
+        HTTPClient http;
+        http.begin(DATA_URL);
+        http.addHeader("Content-Type", "application/json");
+        ResponseCode = http.POST(jsonData);
+        http.end();
+    #else
+        if(!sim.isConnected())  {
+            Serial.println("Not connected to cellular network. Data not uploaded.");
+            return false;
+        }
+        sim.sendPostRequest(jsonData, server, resource);
+    #endif
     // if (httpResponseCode > 0) {
     //     String response = http.getString();
     //     Serial.println("HTTP Response code: " + String(httpResponseCode));
@@ -116,8 +131,7 @@ bool uploadData(String jsonData) {
     // } else {
     //     Serial.println("HTTP POST request failed.");
     // }
-    http.end();
-    return (httpResponseCode == 200 || httpResponseCode == 201);
+    return (responseCode == 200 || responseCode == 201);
 } 
 
 void printDataOnCLI(const SensorData& data){
@@ -178,11 +192,16 @@ String prepareJsonPayload(const SensorData& data) {
     doc[KEY_SECOND] = String(timeinfo.tm_sec);
     String jsonPayload;
     serializeJson(doc, jsonPayload);
+
+    /* FOR CELLULAR AT COMMANDS*/
+    jsonPayload.replace("\"", "\\\"");
+    jsonPayload = "\"" + jsonPayload + "\""; 
     return jsonPayload;
 }
 
 String prepareCSVPayload(const SensorData& data)    {
-    const tm& timeinfo = get_current_time();
+    struct tm timeinfo;
+    
     return String(data.humidity, 3) + ", " + String(data.temperature, 3) +
         ", " + String(data.turbidity, 3) + ", " + String(data.salinity, 3) + 
         ", " + String(data.tds, 3) + ", " + String(data.ec, 3) + ", "
@@ -194,110 +213,120 @@ String prepareCSVPayload(const SensorData& data)    {
         timeinfo.tm_hour + ":" + timeinfo.tm_min + ":" + timeinfo.tm_sec;   
 }
 
-// bool saveCSVData(fs::FS &fs, const String& data) {
-//     if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
-//         struct tm timeinfo;
+bool saveCSVData(fs::FS &fs, const String& data) {
+    if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
+        struct tm timeinfo;
 
-//         Serial.println("Saving data to CSV file...");
+        Serial.println("Saving data to CSV file...");
 
         
-//         String directoryPath = CSV_DIR_PATH;
-//         File file;
-//         if(!fs.exists(directoryPath))  {
-//             fs.mkdir(directoryPath);
-//             Serial.println("made directory for csv!");
-//         }
+        String directoryPath = CSV_DIR_PATH;
+        File file;
+        if(!fs.exists(directoryPath))  {
+            fs.mkdir(directoryPath);
+            Serial.println("made directory for csv!");
+        }
 
-//         String filename;
-//         if (!getLocalTime(&timeinfo)) {
-//             Serial.println("Failed to get local time.");
-//             filename = directoryPath + "/unknown-time.csv";
-//             // return false;
-//         }else   {
-//             filename = directoryPath + "/" + String(timeinfo.tm_mon+1) + '-' + String(timeinfo.tm_mday) + '-' + String(timeinfo.tm_year) + "-data.csv";
-//         }
+        String filename;
+        if (!is_time_synced()) {
+            Serial.println("Failed to get local time.");
+            filename = directoryPath + "/unknown-time.csv";
+            getCurrentTime(&timeinfo);
+            // return false;
+        }else   {
+            updateSystemTime(&timeinfo);
+            filename = directoryPath + "/" + String(timeinfo.tm_mon+1) + '-' + String(timeinfo.tm_mday) + '-' + String(timeinfo.tm_year) + "-data.csv";
+        }
 
-//         file = fs.open(filename, FILE_APPEND);
-//         if(!file)    {       //if cant open file to append/doesn't exist, create said file and write the headers
-//             Serial.println("Couldnt open file to append/write. Creating new file");
-//             String header = "Humidity, Temperature, Turbidity, Salinity, TDS, pH, Disolved Oxygen, Month, Day, Year, Time";
-//             file = fs.open(filename, FILE_WRITE, true);
-//             file.println(header);
-//         }else{
-//             Serial.println("Opened file for appending!");
-//         }
+        file = fs.open(filename, FILE_APPEND);
+        if(!file)    {       //if cant open file to append/doesn't exist, create said file and write the headers
+            Serial.println("Couldnt open file to append/write. Creating new file");
+            String header = "Humidity, Temperature, Turbidity, Salinity, TDS, pH, Disolved Oxygen, Month, Day, Year, Time";
+            file = fs.open(filename, FILE_WRITE, true);
+            file.println(header);
+        }else{
+            Serial.println("Opened file for appending!");
+        }
            
-//         if(file.println(data)) {
-//             Serial.println("Data saved successfully.");
-//         } 
-//         else {
-//             Serial.println("Failed to save data.");
-//         }
-//         // if (file.println(data)) {
-//         // File file;
-//         // if(!(file = fs.open(filename, FILE_APPEND)))    {       //if cant open file to append/doesn't exist, create said file and write the headers
-//             // String header = "Humidity, Temperature, Turbidity, Salinity, TDS, pH, Disolved Oxygen, Month, Day, Year, Time";
-//             // file = fs.open(filename, FILE_WRITE);
-//             // file.println(header);
-//         // }
+        if(file.println(data)) {
+            Serial.println("Data saved successfully.");
+        } 
+        else {
+            Serial.println("Failed to save data.");
+        }
 
-//         // if(file.println(data)) {
-//         //         Serial.println("Data saved successfully.");
-//         // } 
-//         // else {
-//         //     Serial.println("Failed to save data.");
-//         // }
-//         file.close();
-//         xSemaphoreGive(sdCardMutex);
-//         return true;
-//     }else {
-//         Serial.println("Failed to obtain SD Card mutex for writing.");
-//         return false;
-//     }
-// }
+        file.close();
+        xSemaphoreGive(sdCardMutex);
+        return true;
+    }else {
+        Serial.println("Failed to obtain SD Card mutex for writing.");
+        return false;
+    }
+}
 
-// bool saveJsonData(fs::FS &fs, const String &data) {
-//     if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
-//         struct tm timeinfo;
-//         Serial.println("Saving data to JSON file...");
-//         Serial.println(data);
-//         File file;
+bool saveJsonData(fs::FS &fs, const String &data) {
+    if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
+        struct tm timeinfo;
+        Serial.println("Saving data to JSON file...");
+        Serial.println(data);
+        File file;
 
-//         String directoryPath = JSON_DIR_PATH;
-//         if (!fs.exists(directoryPath))
-//             fs.mkdir(directoryPath);
+        String directoryPath = JSON_DIR_PATH;
+        if (!fs.exists(directoryPath))
+            fs.mkdir(directoryPath);
 
-//         // root = fs.open(JSON_DIR_PATH);
-//         // if (!root) {
-//         //     fs.mkdir(directoryPath);
-//         // }
+        // root = fs.open(JSON_DIR_PATH);
+        // if (!root) {
+        //     fs.mkdir(directoryPath);
+        // }
         
-//         String filename;
-//         if (!getLocalTime(&timeinfo)) {
-//             Serial.println("Failed to get local time.");
-//             Serial.println("Data will not be saving in JSON format.");
-//         }else   {
-//             filename = String(directoryPath) + "/" + (timeinfo.tm_mon + 1) + '-' + timeinfo.tm_mday + '-' + (timeinfo.tm_year) + "-data.json";
-//             if(!(file = fs.open(filename, FILE_APPEND))) {
-//                 Serial.println("Failed to open JSON file for writing.");
-//                 file = fs.open(filename, FILE_WRITE, true);
-//             }
+        String filename;
+        if (!getCurrentTime(&timeinfo)) {
+            Serial.println("Failed to get local time.");
+            Serial.println("Data will not be saving in JSON format.");
+        }else   {
+            updateSystemTime(&timeinfo);
+            filename = String(directoryPath) + "/" + (timeinfo.tm_mon + 1) + '-' + timeinfo.tm_hour + '-' + (timeinfo.tm_year) + "-data.json";
+            if(!(file = fs.open(filename, FILE_APPEND))) {
+                Serial.println("Failed to open JSON file for writing.");
+                file = fs.open(filename, FILE_WRITE, true);
+            }
 
-//             if (file.println(data)) {
-//                 Serial.println("Data saved successfully.");
-//             } else {
-//                 Serial.println("Failed to save data.");
-//                 Serial.println(file.println());
-//             }
-//         }
-//         file.close();
-//         xSemaphoreGive(sdCardMutex);
-//         return true;
-//     } else {
-//         Serial.println("Failed to obtain SD Card mutex for writing JSON.");
-//         return false;
-//     }
-// }
+            if (file.println(data)) {
+                Serial.println("Data saved successfully.");
+            } else {
+                Serial.println("Failed to save data.");
+                Serial.println(file.println());
+            }
+        }
+        file.close();
+        xSemaphoreGive(sdCardMutex);
+        return true;
+    } else {
+        Serial.println("Failed to obtain SD Card mutex for writing JSON.");
+        return false;
+    }
+}
+
+String readDataFromSD(fs::FS &fs, const char* fileName) {
+    if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
+        File file = fs.open(fileName, FILE_READ);
+        if (!file) {
+            Serial.println("Failed to open file for reading");
+            xSemaphoreGive(sdCardMutex);
+            return String();
+        }
+
+        String data = file.readStringUntil('\n');
+        file.close();
+        xSemaphoreGive(sdCardMutex);
+        return data;
+    } else {
+        Serial.println("Failed to obtain SD Card mutex for reading.");
+        return String();
+    }
+}
+
 
 // String readDataFromSD(fs::FS &fs, const char* fileName) {
 //     if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
@@ -318,22 +347,3 @@ String prepareCSVPayload(const SensorData& data)    {
 //     }
 // }
 
-
-// String readDataFromSD(fs::FS &fs, const char* fileName) {
-//     if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
-//         File file = fs.open(fileName, FILE_READ);
-//         if (!file) {
-//             Serial.println("Failed to open file for reading");
-//             xSemaphoreGive(sdCardMutex);
-//             return String();
-//         }
-
-//         String data = file.readStringUntil('\n');
-//         file.close();
-//         xSemaphoreGive(sdCardMutex);
-//         return data;
-//     } else {
-//         Serial.println("Failed to obtain SD Card mutex for reading.");
-//         return String();
-//     }
-// }
