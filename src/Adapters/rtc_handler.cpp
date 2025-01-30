@@ -163,7 +163,7 @@ void updateSystemTime(struct tm* newTime) {
     Serial.println(msg);
     // For further verification, you might want to print the new time
     struct tm verifiedTime;
-    if (getLocalTime(&verifiedTime)) {  // ✅ Ensure it gets the correct time
+    if (getLocalTime(&verifiedTime)) {  // Ensure it gets the correct time
         Serial.printf("[RTC_TAG] Verified System Time: %04d-%02d-%02d %02d:%02d:%02d\n",
                       verifiedTime.tm_year + 1900, verifiedTime.tm_mon + 1, verifiedTime.tm_mday,
                       verifiedTime.tm_hour, verifiedTime.tm_min, verifiedTime.tm_sec);

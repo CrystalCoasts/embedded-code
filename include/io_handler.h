@@ -14,6 +14,7 @@
 #include "pHSensor.h"
 // #include <base_surveyor.h>
 #include "DOSensor.h"
+#include "esp_heap_caps.h"
 
 #define IO_RXD2 47
 #define IO_TXD2 48

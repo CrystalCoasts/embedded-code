@@ -4,13 +4,21 @@ const char apn[]  =  "m2mglobal"; //"iot.1nce.net";     //SET TO YOUR APN
 const char gprsUser[] = "";
 const char gprsPass[] = "";
 
-const char server[]   = "https://d17e66a7-c349-4d03-9453-cf90701e7aaa.mock.pstmn.io";
+const char server[]   =  "https://d17e66a7-c349-4d03-9453-cf90701e7aaa.mock.pstmn.io";
 const char resource[] = "/post";
 const int  port       = 443;
 
 TinyGsm modem(mySerial2);
 TinyGsmClientSecure client(modem);
 HttpClient http(client, server, port);
+
+
+void printHeapStatus(const char* tag) {
+    Serial.printf("[%s] Free heap: %d, Largest free block: %d\n", 
+                  tag, 
+                  heap_caps_get_free_size(MALLOC_CAP_8BIT),
+                  heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+}
 
 Cellular::Cellular()  {};
 
@@ -358,32 +366,70 @@ std::string Cellular::sendData(String command) {
   }
   // Print the response to the serial monitor
   Serial.println(buffer.c_str());
-  delay(2000);
   return buffer;
+
+// char buffer[512];  // Adjust size based on expected response
+// int index = 0;
+
+// while (millis() - startTime < timeout) {
+//   while (mySerial2.available()) {
+//     char c = mySerial2.read();
+//     if (index < sizeof(buffer) - 1) {
+//       buffer[index++] = c;
+//     } else {
+//       break;  // Prevent buffer overflow
+//     }
+    
+//     buffer[index] = '\0';  // Null-terminate string
+
+//     if (strstr(buffer, "OK") || strstr(buffer, "ERROR")) {
+//       goto exitLoop;
+//     }
+//   }
+// }
+// exitLoop:
+// Serial.println(buffer);
+// delay(2000);
+// return std::string(buffer);  // Convert char array to std::string
+
 }
 
-void Cellular::sendPostRequest(String jsonPayload, const char* server, const char* resource) {
-    Serial.println("Sending POST request...");
+bool Cellular::serverConnect(const char* server, const char* resource)  {
+    Serial.println("Starting connection to " + String(server) + " for json uploads");
+    sim.sendData("AT+CCLK?");
     sim.sendData("AT+CSSLCFG=\"sslversion\",1,3");
     sim.sendData("AT+CSSLCFG=\"sni\",1," + String(server));
     sim.sendData("AT+CCLK?");
     sim.sendData("AT+SHSSL=1,\"\"");
-    sim.sendData("AT+SHCONF=\"BODYLEN\",1024");
+    sim.sendData("AT+SHCONF=\"BODYLEN\",512");
     sim.sendData("AT+SHCONF=\"HEADERLEN\",350");
     sim.sendData("AT+SHCONF=\"URL\"," + String(server));
     if(sendData("AT+SHCONN").find("ERROR") != std::string::npos)  {
         Serial.println("Error found! Could not connnect!");
-        return;
+        return false;
     }
-    sim.sendData("AT+SHSTATE?");
-    sim.sendData("AT+SHCHEAD");
-    sim.sendData("AT+SHAHEAD=\"Content-Type\", \"application/json\"");
-    sim.sendData("AT+SHAHEAD=\"User-Agent\",\"curl/7.47.0\"");
-    sim.sendData("AT+SHAHEAD=\"Cache-control\", \"no-cache\"");
-    sim.sendData("AT+SHAHEAD=\"Connection\", \"keep-alive\"");
-    sim.sendData("AT+SHAHEAD=\"Accept\", \"*/*\"");
-    Serial.println(jsonPayload);
+    Serial.println("Successfully connected to " + String(server));
+    return true;
+}
 
+bool Cellular::setJsonHeader()  {
+    if(!sim.IsServerConnected()) {
+        Serial.println("Server not connected.");
+    }else   {
+        sim.sendData("AT+SHCHEAD");
+        sim.sendData("AT+SHAHEAD=\"Content-Type\", \"application/json\"");
+        sim.sendData("AT+SHAHEAD=\"User-Agent\",\"curl/7.47.0\"");
+        sim.sendData("AT+SHAHEAD=\"Cache-control\", \"no-cache\"");
+        sim.sendData("AT+SHAHEAD=\"Connection\", \"keep-alive\"");
+        sim.sendData("AT+SHAHEAD=\"Accept\", \"*/*\"");
+        return true;
+    }
+    
+}
+
+bool Cellular::sendPostRequest(String jsonPayload) {
+    //Serial.println(jsonPayload);
+    std::string err;
     int jsonBits = 0;
     for(char c: jsonPayload)  {
         if(c==':')  {
@@ -391,11 +437,56 @@ void Cellular::sendPostRequest(String jsonPayload, const char* server, const cha
         }
     }
     int jsonLength = jsonPayload.length() -2 -(jsonBits*4);
+
+
     sim.sendData("AT+SHBOD=" + jsonPayload + "," + String(jsonLength));
     sim.sendData("AT+SHBOD?");
     sim.sendData("AT+SHREQ=" + String(resource) + ", 3");
-    sim.sendData("AT+SHREAD=0, 7");
+    // printHeapStatus("HEAP");
+    err = sim.sendData("AT+SHREAD=0, 7");
+    return true;
+}
+
+void Cellular::sendPostRequest() {
+  Serial.println("Sending POST request...");
+
+  sim.sendData("AT+CSSLCFG=\"sslversion\",1,3");
+  sim.sendData("AT+CSSLCFG=\"sni\",1,\"https://d17e66a7-c349-4d03-9453-cf90701e7aaa.mock.pstmn.io\"");
+  sim.sendData("AT+CCLK?");
+  sim.sendData("AT+SHSSL=1,\"\"");
+  sim.sendData("AT+SHCONF=\"BODYLEN\",1024");
+  sim.sendData("AT+SHCONF=\"HEADERLEN\",350");
+  sim.sendData("AT+SHCONF=\"URL\",\"https://d17e66a7-c349-4d03-9453-cf90701e7aaa.mock.pstmn.io\"");
+
+  if(sim.sendData("AT+SHCONN").find("ERROR") != std::string::npos)  {
+    Serial.println("Error found! Could not connnect!");
+    return;
+  }
+
+  sim.sendData("AT+SHSTATE?");
+  sim.sendData("AT+SHCHEAD");
+  sim.sendData("AT+SHAHEAD=\"Content-Type\", \"application/json\"");
+
+  sim.sendData("AT+SHAHEAD=\"User-Agent\",\"curl/7.47.0\"");
+  sim.sendData("AT+SHAHEAD=\"Cache-control\", \"no-cache\"");
+  sim.sendData("AT+SHAHEAD=\"Connection\", \"keep-alive\"");
+  sim.sendData("AT+SHAHEAD=\"Accept\", \"*/*\"");   
+  sim.sendData("AT+SHBOD=\"{\\\"success\\\": \\\"true\\\"}\",19");
+  sim.sendData("AT+SHBOD?");
+  sim.sendData("AT+SHREQ=\"/post\", 3");
+  sim.sendData("AT+SHREAD=0, 6");
+  sim.sendData("AT+SHDISC");
+}
+
+void Cellular::serverDisconnect()   {
     sim.sendData("AT+SHDISC");
+}
+
+bool Cellular::IsServerConnected()  {
+    if(sim.sendData("AT+SHSTATE?").find('0') != std::string::npos)  {
+        return false;
+    }else
+        return true;
 }
 
 void Cellular::setHeader(String header, String type)  {

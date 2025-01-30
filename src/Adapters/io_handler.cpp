@@ -72,6 +72,7 @@ void readSensorData(SensorData &data)
     //     Serial.println("done\n");
     // }
 
+    delay(5000);
     // Serial.println("Turb");
     // data.turbidityValid = tbdty.readTurbidity(&data.turbidity);
     // Serial.println("PH");
@@ -121,8 +122,30 @@ bool uploadData(String jsonData) {
         if(!sim.isConnected())  {
             Serial.println("Not connected to cellular network. Data not uploaded.");
             return false;
+        }else   {
+            if(sim.connected == false)  {
+                if(!sim.serverConnect(server, resource))    {
+                    Serial.println("Server could not connect");
+                    sim.connected=false;
+                    return false;
+                }
+                else{
+                    sim.connected = true;
+                    sim.setJsonHeader();
+                    Serial.println("Server Connected!");
+                }
+            }else   {
+                Serial.println("Is server connected?");
+                if(!sim.IsServerConnected())    {
+                    Serial.println("Server is not connected... Attmpting to connect on next cycle.");
+                    return false;
+                }else   {
+                    Serial.println("attempting to send data");
+                    sim.sendPostRequest(jsonData);
+                    Serial.println("Sent data successfully!");
+                }
+            }
         }
-        sim.sendPostRequest(jsonData, server, resource);
     #endif
     // if (httpResponseCode > 0) {
     //     String response = http.getString();
@@ -235,7 +258,7 @@ bool saveCSVData(fs::FS &fs, const String& data) {
             // return false;
         }else   {
             updateSystemTime(&timeinfo);
-            filename = directoryPath + "/" + String(timeinfo.tm_mon+1) + '-' + String(timeinfo.tm_mday) + '-' + String(timeinfo.tm_year) + "-data.csv";
+            filename = directoryPath + "/" + String(timeinfo.tm_mon+1) + '-' + String(timeinfo.tm_mday) + '-' + String(timeinfo.tm_year+1900) + "-data.csv";
         }
 
         file = fs.open(filename, FILE_APPEND);
@@ -272,8 +295,10 @@ bool saveJsonData(fs::FS &fs, const String &data) {
         File file;
 
         String directoryPath = JSON_DIR_PATH;
-        if (!fs.exists(directoryPath))
+        if(!fs.exists(directoryPath))  {
             fs.mkdir(directoryPath);
+            Serial.println("made directory for json!");
+        }
 
         // root = fs.open(JSON_DIR_PATH);
         // if (!root) {
@@ -281,12 +306,12 @@ bool saveJsonData(fs::FS &fs, const String &data) {
         // }
         
         String filename;
-        if (!getCurrentTime(&timeinfo)) {
+        if (!is_time_synced) {
             Serial.println("Failed to get local time.");
             Serial.println("Data will not be saving in JSON format.");
         }else   {
             updateSystemTime(&timeinfo);
-            filename = String(directoryPath) + "/" + (timeinfo.tm_mon + 1) + '-' + timeinfo.tm_hour + '-' + (timeinfo.tm_year) + "-data.json";
+            filename = String(directoryPath) + "/" + (timeinfo.tm_mon + 1) + '-' + timeinfo.tm_hour + '-' + (timeinfo.tm_year+1900) + "-data.json";
             if(!(file = fs.open(filename, FILE_APPEND))) {
                 Serial.println("Failed to open JSON file for writing.");
                 file = fs.open(filename, FILE_WRITE, true);
@@ -299,6 +324,8 @@ bool saveJsonData(fs::FS &fs, const String &data) {
                 Serial.println(file.println());
             }
         }
+
+        
         file.close();
         xSemaphoreGive(sdCardMutex);
         return true;

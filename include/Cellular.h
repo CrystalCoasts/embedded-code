@@ -10,6 +10,8 @@
 #include <Arduino.h>
 #include <time.h>
 #include <HttpClient.h>
+#include "esp_heap_caps.h"
+
 
 #define mySerial2 Serial1
 #define UART_BAUD           115200
@@ -30,19 +32,24 @@ class Cellular  {
 
         int counter, lastIndex, numberOfPieces = 24;
         String pieces[24], input;
+        bool connected = false;
 
         std::string sendData(String command);
         void modemRestart();
         void modemPowerOff();
         void modemPowerOn();
         struct tm getCurrentTime();
+        bool serverConnect(const char* server, const char* resource);
+        void serverDisconnect();
+        bool IsServerConnected();
         void sendPostRequest();
-        void sendPostRequest(String jsonPayload, const char* server, const char* resource);
+        bool sendPostRequest(String jsonPayload);
         void sendGetRequest();
         bool isConnected();
         bool isGprsConnected();
         bool gprsConnect();
-        void setHeader(String header, String type); 
+        void setHeader(String header, String type);
+        bool setJsonHeader(); 
         // String prepareJson();
         // uint8_t printLocalTime();
         // void updateSystemTime(const struct tm& newTime);
@@ -58,6 +65,8 @@ class Cellular  {
         Cellular& operator=(const Cellular&) = delete;
 
 };
+
+void printHeapStatus(const char* tag);
 
 extern Cellular& sim;
 

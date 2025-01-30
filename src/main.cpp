@@ -11,6 +11,9 @@
 #include "soc/rtc.h"
 #include "driver/rtc_io.h"
 #include "driver/i2c.h"
+#include <esp_task_wdt.h>
+
+
 
 // Sensor headers
 #include "TempSensor.h"
@@ -76,11 +79,12 @@ const uint64_t SYSTEM_POWER_ON = 25 * MINUTE_US;
 volatile uint64_t USER_POWER_ON = 5 * HOUR_US;
 
 uint64_t SYSTEM_POWER_OFF = 30 * MINUTE_MS;  
-const uint64_t SENSOR_TASK_TIMER =  5000;  //HALF_MINUTE_MS; // 30 seconds, for tasks
+const uint64_t SENSOR_TASK_TIMER =  10000;  //HALF_MINUTE_MS; // 30 seconds, for tasks
 
 //tasks semaphores
 SemaphoreHandle_t sdCardMutex;
 SemaphoreHandle_t sensorMutex;
+SemaphoreHandle_t simCardMutex;
 
 //handlers and running status
 TimerHandle_t shutdownTimerHandle;
@@ -110,23 +114,28 @@ void powerOffSequence();
 // DallasTemperature sensors(&oneWire);
 //Adafruit_MCP23X17 mcp2;
 
+
+
 void setup() {
-    //setCpuFrequencyMhz(80);
+    setCpuFrequencyMhz(240);
     Serial.begin(115200);
     //sensors.begin();
 
     Wire.begin(21,22);
+
+    
+
   
 
-    int i2c_master_port = 0;
-    i2c_config_t conf = {
-        .mode = I2C_MODE_MASTER,
-        .sda_io_num = 21,         // select GPIO specific to your project
-        .scl_io_num = 22,         // select GPIO specific to your project
-        .scl_pullup_en = GPIO_PULLUP_ENABLE,
-        .clk_flags = 0,                          // you can use I2C_SCLK_SRC_FLAG_* flags to choose i2c source clock here
-    };
-    i2c_driver_install(I2C_NUM_MAX, I2C_MODE_MASTER, 500, 500, 0);
+    // int i2c_master_port = 0;
+    // i2c_config_t conf = {
+    //     .mode = I2C_MODE_MASTER,
+    //     .sda_io_num = 21,         // select GPIO specific to your project
+    //     .scl_io_num = 22,         // select GPIO specific to your project
+    //     .scl_pullup_en = GPIO_PULLUP_ENABLE,
+    //     .clk_flags = 0,                          // you can use I2C_SCLK_SRC_FLAG_* flags to choose i2c source clock here
+    // };
+    // i2c_driver_install(I2C_NUM_MAX, I2C_MODE_MASTER, 500, 500, 0);
 
     //setup spi 
 
@@ -157,6 +166,7 @@ void setup() {
     DO.begin();
     sal.begin(); //also tds & ec
 
+
     #ifndef CELLULAR
         Wire.begin(); // initialize early to ensure sensors can use it
         Initialize WiFi we need to continue even if wifi fails
@@ -174,6 +184,14 @@ void setup() {
             isConnected = true;
         }
     #endif
+
+    // esp_task_wdt_config_t config = {
+
+    //     .timeout_ms = 10000 // Set timeout to 10 seconds
+
+    // };
+
+    // esp_task_wdt_init(&config,true);
 
     
 
@@ -209,6 +227,7 @@ void setup() {
     // Create mutexes
     sdCardMutex = xSemaphoreCreateMutex();
     sensorMutex = xSemaphoreCreateMutex();
+    simCardMutex = xSemaphoreCreateMutex();
   
     //other system initializations
 
@@ -217,7 +236,7 @@ void setup() {
     batteryLevel = prefs.getUInt("batteryLevel", BATTERY_CHARGE); // Default to full charge if not set
     prefs.end();
     rtc_begin();
-    ws.init();
+  //  ws.init();
 
     //create tasks and setup powerOff timer
     lastUpdateTime = millis(); // Set initial time for battery updates
@@ -225,13 +244,14 @@ void setup() {
     xTaskCreate(sensorTask, "Sensor Task", 8192, NULL, 1, &TaskSensorHandle);
     shutdownTimerHandle = xTimerCreate("ShutdownTimer", pdMS_TO_TICKS(SYSTEM_POWER_OFF), pdFALSE, (void*) 0, shutdownTimerCallback);
     xTimerStart(shutdownTimerHandle, 0);
+    startUploadTask();
+
     // if(sim.isGprsConnected())    {
     //     struct tm timeinfo;
     //     getCurrentTime(&timeinfo);
     //     updateSystemTime(timeinfo);
     //     printLocalTime();
     // }
-    startUploadTask();
 
     String msg = MAIN_TAG + String (" Setup done");
     Serial.println(msg);
@@ -240,40 +260,40 @@ void setup() {
 
 
 void loop() {
-    // uint8_t batteryLevel = digitalRead(BATTERY_PIN);
-    // Serial.println("Battery Level: " + String(batteryLevel));
-    // delay(1000);
+   
+   
 }
 
 /* TASKS */
 void sensorTask(void *pvParameters) {
     sensorTaskRunning = true;
     while (sensorTaskRunning) {
-        Serial.println("[TASKS] Sensor task running");
-        SensorData data;
-        readSensorData(data);
-        printDataOnCLI(data);
-        
-        // if(!cardMount)  {
-        //     SD_MMC.begin("/SD", true, true);
-        //     String msg = SD_TAG + String (" Card Mount Failed");
-        //     Serial.println(msg);
-        // }
-        // else  {
-        //     cardMount = true;
-        // }  
-        Serial.println("Starting CSV task");
-        if (!saveCSVData(SD, prepareCSVPayload(data))) {
-            Serial.println("[TASKS] Failed to save CSV data.");
-            cardMount = false;
-        }
-        Serial.println("Starting JSON task");
-        if (!saveJsonData(SD, prepareJsonPayload(data))) {
-            Serial.println("[TASKS] Failed to save JSON data.");
-        }
+            Serial.println("[TASKS] Sensor task running");
+            SensorData data;
+            readSensorData(data);
+            printDataOnCLI(data);
+            
+            // if(!cardMount)  {
+            //     SD_MMC.begin("/SD", true, true);
+            //     String msg = SD_TAG + String (" Card Mount Failed");
+            //     Serial.println(msg);
+            // }
+            // else  {
+            //     cardMount = true;
+            // }  
+            Serial.println("Starting CSV task");
+            if (!saveCSVData(SD, prepareCSVPayload(data))) {
+                Serial.println("[TASKS] Failed to save CSV data.");
+                cardMount = false;
+            }
+            Serial.println("Starting JSON task");
+            if (!saveJsonData(SD, prepareJsonPayload(data))) {
+                Serial.println("[TASKS] Failed to save JSON data.");
+            }
 
-        Serial.println("[TASKS] Sensor task sleeping");
-        vTaskDelay(pdMS_TO_TICKS(SENSOR_TASK_TIMER));  // Delay the task for SENSOR_TASK_TIMER seconds
+            Serial.println("[TASKS] Sensor task sleeping");
+            vTaskDelay(pdMS_TO_TICKS(SENSOR_TASK_TIMER));  // Delay the task for SENSOR_TASK_TIMER seconds
+
     }
     // Clean up or prepare to delete task
     sensorTaskRunning = false;
@@ -283,10 +303,6 @@ void sensorTask(void *pvParameters) {
 
 void uploadTask(void *pvParameters) {
     for (;;) {
-        // if(sensorTaskRunning)   {
-        //     vTaskDelay(pdMS_TO_TICKS(3000)); // Delay before next execution cycle
-        //     continue;
-        // }else   {
         #ifndef CELLULAR
             if (WiFi.status() != WL_CONNECTED) {
                 Serial.println("WiFi not connected. Skipping upload.");
@@ -298,7 +314,7 @@ void uploadTask(void *pvParameters) {
                     Serial.println("Cellular not connected.");
                     vTaskDelay(pdMS_TO_TICKS(5000)); // Delay before next execution cycle
                     continue;
-                }
+            }
 
         #endif
 
@@ -323,6 +339,7 @@ void uploadTask(void *pvParameters) {
                     continue;
                 }
 
+                uploadDataTaskRunning = true;
                 bool allLinesUploaded = true;
                 String jsonLine;
                 char ch;
@@ -334,8 +351,10 @@ void uploadTask(void *pvParameters) {
                             if (!uploadData(jsonLine)) {
                                 Serial.println("Failed to upload: " + jsonLine);
                                 allLinesUploaded = false;
+                                uploadDataTaskRunning = false;
                                 break;
                             }
+                            vTaskDelay(pdMS_TO_TICKS(2000));
                             jsonLine = ""; // Reset the line buffer
                         }
                     } else {
@@ -343,10 +362,13 @@ void uploadTask(void *pvParameters) {
                     }
                 }
 
+                uploadDataTaskRunning = false;
                 file.close();
                 if (allLinesUploaded) {
                     SD.remove(String(JSON_DIR_PATH) + "/" + String(fileName)); // Ensure the path is correct
                     Serial.println(String(fileName) + " uploaded and deleted successfully.");
+                    sim.connected = false;
+                    sim.serverDisconnect();
                 } else {    
                     Serial.println("Not all lines in the file were uploaded successfully.");
                 }
@@ -413,7 +435,7 @@ void powerOffSequence() {
 
 void startUploadTask() {
     if (TaskUploadDataHandle == NULL) {
-        xTaskCreate(uploadTask, "UploadData", 8192, NULL, 1, &TaskUploadDataHandle);
+        xTaskCreatePinnedToCore(uploadTask, "UploadData", 8192, NULL, 1, &TaskUploadDataHandle,1);
         uploadDataTaskRunning = true;
     }
 }
