@@ -46,7 +46,7 @@ bool getCurrentTime(tm timeinfo) {        //Cellular
     if(is_time_synced())   {
         getLocalTime(&timeinfo, 500);
     }else{
-        if(!sim.isConnected())
+        if(!sim.isGprsConnected())
             return false;
         std::string clk = sim.sendData("AT+CCLK?");
         
