@@ -27,8 +27,8 @@ void rtc_begin();
 
 // Function to get the current time
 struct tm get_current_time();
-bool getCurrentTime(struct tm* timeinfo);     //updated too support cellular instead of wifi
-void updateSystemTime(struct tm* newTime);
+bool getCurrentTime(tm timeinfo);     //updated too support cellular instead of wifi
+void updateSystemTime(tm newTime);
 
 // Callback function for time updates
 void on_time_sync(struct timeval *t);

@@ -5,6 +5,8 @@
 
 // Preferences preferences;
 
+time_t localnow = time(NULL);
+bool overflow = false;
 
 String RTC_TAG ="[RTC_TAG] ";
 const char* NTP_SERVER_1 = "pool.ntp.org";
@@ -18,6 +20,9 @@ bool time_synced = false;
 void rtc_begin() {
     sntp_set_time_sync_notification_cb(on_time_sync);
     configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER_1, NTP_SERVER_2);
+
+    setenv("TZ", "America/New_York", 1);  // Replace with your timezone
+    tzset();
 }
 
 bool is_time_synced() {
@@ -37,10 +42,12 @@ struct tm get_current_time() {
     return timeinfo;
 }
 
-bool getCurrentTime(struct tm* timeinfo) {        //Cellular
+bool getCurrentTime(tm timeinfo) {        //Cellular
     if(is_time_synced())   {
-        getLocalTime(timeinfo, 500);
+        getLocalTime(&timeinfo, 500);
     }else{
+        if(!sim.isConnected())
+            return false;
         std::string clk = sim.sendData("AT+CCLK?");
         
         // Extract the quoted time string
@@ -74,16 +81,16 @@ bool getCurrentTime(struct tm* timeinfo) {        //Cellular
         int second = std::stoi(clk.substr(0, clk.find(delimiter)));
         
         // Populate struct tm
-        timeinfo->tm_year = year - 1900;  // Years since 1900
-        timeinfo->tm_mon = month - 1;  // Months are 0-based
-        timeinfo->tm_mday = day;
-        timeinfo->tm_hour = hour;
-        timeinfo->tm_min = minute;
-        timeinfo->tm_sec = second;
+        timeinfo.tm_year = year - 1900;  // Years since 1900
+        timeinfo.tm_mon = month - 1;  // Months are 0-based
+        timeinfo.tm_mday = day;
+        timeinfo.tm_hour = hour;
+        timeinfo.tm_min = minute;
+        timeinfo.tm_sec = second;
 
         Serial.printf("Parsed Time: %04d/%02d/%02d %02d:%02d:%02d\n", 
                     year, month, day, hour, minute, second);
-        updateSystemTime(timeinfo);
+        updateSystemTime(timeinfo);        
         time_synced = true;
         return true;
     }
@@ -136,22 +143,28 @@ uint8_t printLocalTime() {
     return 0;
 }
 
-void updateSystemTime(struct tm* newTime) {
+void updateSystemTime(tm newTime) {
     String msg;
     
-    printTime(newTime);
-    if(newTime == nullptr)  {
-        Serial.println("Null pointer for time passed in update time!");
-    }
+    printTime(&newTime);
     // Convert tm struct to time_t
-    time_t t = mktime(newTime);
+    time_t t = mktime(&newTime);
     if (t == -1) {
         Serial.println("Error: Failed to convert struct tm to time_t!");
         return;
     }
     // Set system time
-    timeval tv = { t, 0 };
-    if(settimeofday(&tv, NULL) != 0 ) {
+    struct timeval tv;
+    if (t > 2082758399){
+        overflow = true;
+        tv.tv_sec = t - 2082758399;  // epoch time (seconds)
+    } else {
+        overflow = false;
+        tv.tv_sec = t;  // epoch time (seconds)
+    }
+    //tv.tv_usec = 0;    // microseconds
+
+    if(settimeofday(&tv,NULL) != 0 ) {
         Serial.println("Error: Failed to set system time!");
     }
     configTime(0, 0, "");  // Clear NTP sync
@@ -162,7 +175,7 @@ void updateSystemTime(struct tm* newTime) {
     msg = RTC_TAG + "System time updated successfully.";
     Serial.println(msg);
     // For further verification, you might want to print the new time
-    struct tm verifiedTime;
+    struct tm verifiedTime = get_current_time();
     if (getLocalTime(&verifiedTime)) {  // Ensure it gets the correct time
         Serial.printf("[RTC_TAG] Verified System Time: %04d-%02d-%02d %02d:%02d:%02d\n",
                       verifiedTime.tm_year + 1900, verifiedTime.tm_mon + 1, verifiedTime.tm_mday,

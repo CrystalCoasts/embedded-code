@@ -1,5 +1,8 @@
 #include "Cellular.h"
 
+#define networkTimeout 30000
+#define checkSignal false
+
 const char apn[]  =  "m2mglobal"; //"iot.1nce.net";     //SET TO YOUR APN
 const char gprsUser[] = "";
 const char gprsPass[] = "";
@@ -7,6 +10,8 @@ const char gprsPass[] = "";
 const char server[]   =  "https://d17e66a7-c349-4d03-9453-cf90701e7aaa.mock.pstmn.io";
 const char resource[] = "/post";
 const int  port       = 443;
+
+
 
 TinyGsm modem(mySerial2);
 TinyGsmClientSecure client(modem);
@@ -132,7 +137,7 @@ void Cellular::begin()   {
     }
 
     Serial.println("\n\n\nWaiting for network...");
-    if (!modem.waitForNetwork()) {
+    if (!modem.waitForNetwork(networkTimeout, checkSignal)) {
         delay(10000);
         return;
     }
@@ -283,7 +288,7 @@ bool Cellular::gprsConnect()    {
         }
 
         Serial.println("\n\n\nWaiting for network...");
-        if (!modem.waitForNetwork()) {
+        if (!modem.waitForNetwork(networkTimeout, checkSignal)) {
             Serial.println("Waiting for network timed out...");
             return false;
         }
@@ -422,6 +427,7 @@ bool Cellular::setJsonHeader()  {
         sim.sendData("AT+SHAHEAD=\"Cache-control\", \"no-cache\"");
         sim.sendData("AT+SHAHEAD=\"Connection\", \"keep-alive\"");
         sim.sendData("AT+SHAHEAD=\"Accept\", \"*/*\"");
+        //sim.sendData("AT+SHAHEAD=\"Authoriation\", bearer {token} )
         return true;
     }
     

@@ -11,6 +11,7 @@
 
 extern SemaphoreHandle_t sdCardMutex;
 extern SemaphoreHandle_t sensorMutex;
+extern SemaphoreHandle_t simCardMutex;
 const char* DATA_URL = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.com/api/data";
 // const char* DATA_URL = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.com/api/test-data";
 
@@ -42,47 +43,47 @@ void readSensorData(SensorData &data)
     Serial.println("Reading sensor data...");
     // pinMode(40,OUTPUT);
     // digitalWrite(40,HIGH);
-    // byte error, address;
-    // int nDevices;
-    // Serial.println("Scanning...");
-    // nDevices = 0;
-    // for(address = 0; address < 127; address++ ) {
-    //     Wire.beginTransmission(address);
-    //     error = Wire.endTransmission();
-    //     if (error == 0) {
-    //     Serial.print("I2C device found at address 0x");
-    //     if (address<16) {
-    //         Serial.print("0");
-    //     }
-    //     Serial.println(address,HEX);
-    //     nDevices++;
-    //     }
-    //     else if (error==4) {
-    //     Serial.print("Unknow error at address 0x");
-    //     if (address<16) {
-    //         Serial.print("0");
-    //     }
-    //     Serial.println(address,HEX);
-    //     }    
-    // }
-    // if (nDevices == 0) {
-    //     Serial.println("No I2C devices found\n");
-    // }
-    // else {
-    //     Serial.println("done\n");
-    // }
+    byte error, address;
+    int nDevices;
+    Serial.println("Scanning...");
+    nDevices = 0;
+    for(address = 0; address < 127; address++ ) {
+        Wire.beginTransmission(address);
+        error = Wire.endTransmission();
+        if (error == 0) {
+        Serial.print("I2C device found at address 0x");
+        if (address<16) {
+            Serial.print("0");
+        }
+        Serial.println(address,HEX);
+        nDevices++;
+        }
+        else if (error==4) {
+        Serial.print("Unknow error at address 0x");
+        if (address<16) {
+            Serial.print("0");
+        }
+        Serial.println(address,HEX);
+        }    
+    }
+    if (nDevices == 0) {
+        Serial.println("No I2C devices found\n");
+    }
+    else {
+        Serial.println("done\n");
+    }
 
     delay(5000);
-    // Serial.println("Turb");
-    // data.turbidityValid = tbdty.readTurbidity(&data.turbidity);
-    // Serial.println("PH");
-    // data.pHValid = phGloabl.readpH(&data.pH);
-    // Serial.println("DO");
-    // data.oxygenLevelValid = DO.readDO(&data.oxygenLevel, data.salinity, data.temperature);
-    // Serial.println("SAL");
-    // data.ecValid = sal.readEC(&data.ec);
-    // data.tdsValid = sal.readTDS(&data.tds);
-    // data.salinityValid = sal.readSalinity(&data.salinity);
+    Serial.println("Turb");
+    data.turbidityValid = tbdty.readTurbidity(&data.turbidity);
+    Serial.println("PH");
+    data.pHValid = phGloabl.readpH(&data.pH);
+    Serial.println("DO");
+    data.oxygenLevelValid = DO.readDO(&data.oxygenLevel, data.salinity, data.temperature);
+    Serial.println("SAL");
+    data.ecValid = sal.readEC(&data.ec);
+    data.tdsValid = sal.readTDS(&data.tds);
+    data.salinityValid = sal.readSalinity(&data.salinity);
 
     Serial.println("TEMP&HUM");
     data.temperatureValid = temp.readTemperature(FAHRENHEIT, &data.temperature);
@@ -106,7 +107,8 @@ void readSensorData(SensorData &data)
 
 bool uploadData(String jsonData) {
     int responseCode = 200;
-    #ifndef CELLULAR
+    if(xSemaphoreTake(simCardMutex, pdMS_TO_TICKS(5000)))    {
+        #ifndef CELLULAR
         if (WiFi.status() != WL_CONNECTED) {
             Serial.println("Not connected to WiFi. Data not uploaded.");
             return false;
@@ -118,35 +120,41 @@ bool uploadData(String jsonData) {
         http.addHeader("Content-Type", "application/json");
         ResponseCode = http.POST(jsonData);
         http.end();
-    #else
-        if(!sim.isConnected())  {
-            Serial.println("Not connected to cellular network. Data not uploaded.");
-            return false;
-        }else   {
-            if(sim.connected == false)  {
-                if(!sim.serverConnect(server, resource))    {
-                    Serial.println("Server could not connect");
-                    sim.connected=false;
-                    return false;
-                }
-                else{
-                    sim.connected = true;
-                    sim.setJsonHeader();
-                    Serial.println("Server Connected!");
-                }
+        #else
+            if(!sim.isConnected())  {
+                Serial.println("Not connected to cellular network. Data not uploaded.");
+                xSemaphoreGive(simCardMutex);
+                return false;
             }else   {
-                Serial.println("Is server connected?");
-                if(!sim.IsServerConnected())    {
-                    Serial.println("Server is not connected... Attmpting to connect on next cycle.");
-                    return false;
+                if(sim.connected == false)  {
+                    if(!sim.serverConnect(server, resource))    {
+                        Serial.println("Server could not connect");
+                        sim.connected=false;
+                        xSemaphoreGive(simCardMutex);
+                        return false;
+                    }
+                    else{
+                        sim.connected = true;
+                        sim.setJsonHeader();
+                        Serial.println("Server Connected!");
+                    }
                 }else   {
-                    Serial.println("attempting to send data");
-                    sim.sendPostRequest(jsonData);
-                    Serial.println("Sent data successfully!");
+                    Serial.println("Is server connected?");
+                    if(!sim.IsServerConnected())    {
+                        Serial.println("Server is not connected... Attmpting to connect on next cycle.");
+                        xSemaphoreGive(simCardMutex);
+                        return false;
+                    }else   {
+                        Serial.println("attempting to send data");
+                        sim.sendPostRequest(jsonData);
+                        Serial.println("Sent data successfully!");
+                    }
                 }
             }
-        }
-    #endif
+        #endif
+        xSemaphoreGive(simCardMutex);
+    }
+    
     // if (httpResponseCode > 0) {
     //     String response = http.getString();
     //     Serial.println("HTTP Response code: " + String(httpResponseCode));
@@ -223,8 +231,7 @@ String prepareJsonPayload(const SensorData& data) {
 }
 
 String prepareCSVPayload(const SensorData& data)    {
-    struct tm timeinfo;
-    
+    const tm& timeinfo = get_current_time();
     return String(data.humidity, 3) + ", " + String(data.temperature, 3) +
         ", " + String(data.turbidity, 3) + ", " + String(data.salinity, 3) + 
         ", " + String(data.tds, 3) + ", " + String(data.ec, 3) + ", "
@@ -237,8 +244,8 @@ String prepareCSVPayload(const SensorData& data)    {
 }
 
 bool saveCSVData(fs::FS &fs, const String& data) {
-    if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
-        struct tm timeinfo;
+    if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000)) && xSemaphoreTake(simCardMutex, pdMS_TO_TICKS(5000))) {
+        tm timeinfo;
 
         Serial.println("Saving data to CSV file...");
 
@@ -254,11 +261,12 @@ bool saveCSVData(fs::FS &fs, const String& data) {
         if (!is_time_synced()) {
             Serial.println("Failed to get local time.");
             filename = directoryPath + "/unknown-time.csv";
-            getCurrentTime(&timeinfo);
+            getCurrentTime(timeinfo);
             // return false;
         }else   {
-            updateSystemTime(&timeinfo);
-            filename = directoryPath + "/" + String(timeinfo.tm_mon+1) + '-' + String(timeinfo.tm_mday) + '-' + String(timeinfo.tm_year+1900) + "-data.csv";
+            updateSystemTime(timeinfo);
+            timeinfo = get_current_time();
+            filename = directoryPath + "/" + String(timeinfo.tm_mon+1) + '-' + String(timeinfo.tm_mday) + '-' + String(timeinfo.tm_year) + "-data.csv";
         }
 
         file = fs.open(filename, FILE_APPEND);
@@ -280,6 +288,7 @@ bool saveCSVData(fs::FS &fs, const String& data) {
 
         file.close();
         xSemaphoreGive(sdCardMutex);
+        xSemaphoreGive(simCardMutex);
         return true;
     }else {
         Serial.println("Failed to obtain SD Card mutex for writing.");
@@ -288,7 +297,7 @@ bool saveCSVData(fs::FS &fs, const String& data) {
 }
 
 bool saveJsonData(fs::FS &fs, const String &data) {
-    if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
+    if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000)) && xSemaphoreTake(simCardMutex, pdMS_TO_TICKS(5000))) {
         struct tm timeinfo;
         Serial.println("Saving data to JSON file...");
         Serial.println(data);
@@ -310,8 +319,9 @@ bool saveJsonData(fs::FS &fs, const String &data) {
             Serial.println("Failed to get local time.");
             Serial.println("Data will not be saving in JSON format.");
         }else   {
-            updateSystemTime(&timeinfo);
-            filename = String(directoryPath) + "/" + (timeinfo.tm_mon + 1) + '-' + timeinfo.tm_hour + '-' + (timeinfo.tm_year+1900) + "-data.json";
+            //updateSystemTime(timeinfo);
+            timeinfo = get_current_time();
+            filename = String(directoryPath) + "/" + (timeinfo.tm_mon + 1) + '-' + timeinfo.tm_hour + '-' + (timeinfo.tm_year) + "-data.json";
             if(!(file = fs.open(filename, FILE_APPEND))) {
                 Serial.println("Failed to open JSON file for writing.");
                 file = fs.open(filename, FILE_WRITE, true);
@@ -328,6 +338,7 @@ bool saveJsonData(fs::FS &fs, const String &data) {
         
         file.close();
         xSemaphoreGive(sdCardMutex);
+        xSemaphoreGive(simCardMutex);
         return true;
     } else {
         Serial.println("Failed to obtain SD Card mutex for writing JSON.");
@@ -347,6 +358,7 @@ String readDataFromSD(fs::FS &fs, const char* fileName) {
         String data = file.readStringUntil('\n');
         file.close();
         xSemaphoreGive(sdCardMutex);
+        xSemaphoreGive(simCardMutex);
         return data;
     } else {
         Serial.println("Failed to obtain SD Card mutex for reading.");
