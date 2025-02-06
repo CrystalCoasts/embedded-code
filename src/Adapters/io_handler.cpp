@@ -74,16 +74,16 @@ void readSensorData(SensorData &data)
     }
 
     delay(5000);
-    Serial.println("Turb");
-    data.turbidityValid = tbdty.readTurbidity(&data.turbidity);
-    Serial.println("PH");
-    data.pHValid = phGloabl.readpH(&data.pH);
-    Serial.println("DO");
-    data.oxygenLevelValid = DO.readDO(&data.oxygenLevel, data.salinity, data.temperature);
-    Serial.println("SAL");
-    data.ecValid = sal.readEC(&data.ec);
-    data.tdsValid = sal.readTDS(&data.tds);
-    data.salinityValid = sal.readSalinity(&data.salinity);
+    // Serial.println("Turb");
+    // data.turbidityValid = tbdty.readTurbidity(&data.turbidity);
+    // Serial.println("PH");
+    // data.pHValid = phGloabl.readpH(&data.pH);
+    // Serial.println("DO");
+    // data.oxygenLevelValid = DO.readDO(&data.oxygenLevel, data.salinity, data.temperature);
+    // Serial.println("SAL");
+    // data.ecValid = sal.readEC(&data.ec);
+    // data.tdsValid = sal.readTDS(&data.tds);
+    // data.salinityValid = sal.readSalinity(&data.salinity);
 
     Serial.println("TEMP&HUM");
     data.temperatureValid = temp.readTemperature(FAHRENHEIT, &data.temperature);

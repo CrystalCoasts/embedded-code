@@ -112,7 +112,7 @@ void powerOffSequence();
 
 // OneWire oneWire(41);
 // DallasTemperature sensors(&oneWire);
-//Adafruit_MCP23X17 mcp2;
+Adafruit_MCP23X17 mcp;
 
 
 
@@ -160,11 +160,40 @@ void setup() {
     // myfile.close();
 
     //mcp.begin_I2C();
+
+    // mcp.begin_I2C();      // use default address 0
+    // mcp.pinMode(0, INPUT);
+    //mcp.  // turn on a 100K pullup internally
+
+    mcp.begin_I2C();
+
+    Wire.beginTransmission(0x20);
+    Wire.write(0x01); // IODIRB register
+    Wire.write(0x00); // set entire PORT B to output
+    Wire.endTransmission();
+
+    Wire.beginTransmission(0x20);
+    Wire.write(0x13);
+    Wire.write(0xFF);
+    Wire.endTransmission();
+
+    delay(500);
+    Wire.beginTransmission(0x20);
+    Wire.write(0x13);
+    Wire.write(0x00);
+    Wire.endTransmission();
+
+    delay(500);
+    Wire.beginTransmission(0x20);
+    Wire.write(0x13);
+    Wire.write(0xFF);
+    Wire.endTransmission();
+
     temp.begin();
     tbdty.begin();
     phGloabl.begin();
     DO.begin();
-    sal.begin(); //also tds & ec
+    //sal.begin(); //also tds & ec
 
 
     #ifndef CELLULAR
@@ -201,11 +230,11 @@ void setup() {
     // digitalWrite(38,HIGH);
     // delay(200);
     // mcpGlobal.begin();
-    // mcpGlobal.pinMode(0,OUTPUT);
-    // mcpGlobal.digitalWrite(0,HIGH);
-    // mcp2.begin_I2C();
-    // mcp2.pinMode(8,OUTPUT);
-    // mcp2.digitalWrite(8,HIGH);
+    // mcpGlobal.pinMode(1,OUTPUT);
+    // mcpGlobal.digitalWrite(1,HIGH);
+    // mcp.begin_I2C();
+    // mcp.pinMode(1,OUTPUT);
+    // mcp.digitalWrite(1,HIGH);
   
 
     // digitalWrite(40,LOW);

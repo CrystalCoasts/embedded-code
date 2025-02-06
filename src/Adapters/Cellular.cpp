@@ -1,6 +1,6 @@
 #include "Cellular.h"
 
-#define networkTimeout 30000
+#define networkTimeout 10000
 #define checkSignal false
 
 const char apn[]  =  "m2mglobal"; //"iot.1nce.net";     //SET TO YOUR APN
