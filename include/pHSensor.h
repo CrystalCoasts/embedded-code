@@ -12,7 +12,8 @@
 class pHSensor {
 public:
     static constexpr uint8_t EEPROM_VCLEAR_ADDRESS = 0;
-    static constexpr uint8_t PIN = 39;
+    static constexpr uint8_t PIN = 0;   //I2C ADC
+    //static constexpr uint8_t PIN = 39;    //ESP32 ONBOARD
     static constexpr uint8_t EN = 0;
 
     static pHSensor& Get();

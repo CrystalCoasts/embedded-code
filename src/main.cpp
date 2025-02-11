@@ -22,7 +22,9 @@
 #include "pHSensor.h"
 #include "ioExtender.h"
 #include "Adafruit_MCP23X17.h"
+#include "Adafruit_ADS1X15.h"
 #include "cellular.h"
+#include "I2Cadc.h"
 
 //helpers
 #include "io_handler.h" //this includes SdFat32
@@ -114,18 +116,14 @@ void powerOffSequence();
 // DallasTemperature sensors(&oneWire);
 //Adafruit_MCP23X17 mcp2;
 
-
+Adafruit_ADS1015 ads1015;
 
 void setup() {
-    setCpuFrequencyMhz(240);
+    setCpuFrequencyMhz(80);
     Serial.begin(115200);
     //sensors.begin();
 
     Wire.begin(21,22);
-
-    
-
-  
 
     // int i2c_master_port = 0;
     // i2c_config_t conf = {

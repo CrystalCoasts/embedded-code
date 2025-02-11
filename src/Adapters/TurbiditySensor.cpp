@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <esp_adc_cal.h>
 #include <esp32-hal-adc.h>
+#include "I2Cadc.h"
 
 TurbiditySensor& tbdty = TurbiditySensor::Get();
 
@@ -43,7 +44,7 @@ bool TurbiditySensor::readTurbidity(float* turbidity) {
         return false; // Invalid pointer
     }
 
-    int sensorValue = analogRead(T_ANALOG_PIN);
+    int sensorValue = i2cadc.readADC(T_ANALOG_PIN);
     sleep();
     float Vout = sensorValue * (VREF / ADC_DIGITAL); // Convert ADC value to voltage
     float Vin = Vout * DIVIDER_RATIO; // Adjust for voltage divider
