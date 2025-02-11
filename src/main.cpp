@@ -157,15 +157,6 @@ void setup() {
     // Initialize sensors before wifi
     // myfile.close();
 
-    i2cadc.begin();
-    int16_t adc0;
-    i2cadc.setGain(GAIN_ONE);
-    adc0 = i2cadc.readADC(0);
-    float adcValue = adc0 * (4.096/pow(2,12));
-    Serial.println(adcValue);
-
-
-
     //mcp.begin_I2C();
     temp.begin();
     tbdty.begin();
