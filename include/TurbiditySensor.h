@@ -7,7 +7,8 @@
 class TurbiditySensor {
 public:
     static constexpr short READ_SAMPLES = 25;
-    static constexpr short T_ANALOG_PIN = 39; // ADC1 pin
+    //static constexpr short T_ANALOG_PIN = 39; // ADC1 ESP PIN
+    static constexpr short T_ANALOG_PIN = 0; // ADC0 I2C
     static constexpr uint8_t EEPROM_VCLEAR_ADDRESS = 0;
     static constexpr uint8_t EN = 0;
 
@@ -19,7 +20,7 @@ public:
     void wakeup();
 
 private:
-    static constexpr float VREF = 3.3;
+    static constexpr float VREF = 4.095;
     static constexpr short MAX_NTU = 4550;
     static constexpr short ADC_DIGITAL = 4095;
     //vout = vin*(R2/(R1+R2)) -> vin20/(10+20) -> vin = vou*(3/2)

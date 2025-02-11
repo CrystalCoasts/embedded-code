@@ -6,6 +6,7 @@
 #endif
 
 #include "ph_surveyor.h"
+#include "I2Cadc.h"
 #include "EEPROM.h"
 
 
@@ -41,10 +42,14 @@ float Surveyor_pH::read_voltage() {
 	//https://github.com/espressif/arduino-esp32/issues/92
 		
     //Arduino code
-    voltage_mV += analogRead(this->pin) / 4095.0 * 3300.0 + 130;
+    //voltage_mV += analogRead(this->pin) / 4095.0 * 3300.0 + 130;
 
     //READING FROM ADC1
     //voltage_mV += adc1_get_raw(CHANNEL) / 4095.0 * 3300.0 +130;
+
+    //I2C adc code
+    i2cadc.setGain(GAIN_ONE);   //sets voltage reading from +/- 4.096V
+    voltage_mV += i2cadc.readADC(this->pin) / 4095.0 * 3300.0 +130;
 	#else
 		//voltage_mV += adc1_get_raw(CHANNEL) / 1024.0 * 5000.0;
     voltage_mV += analogRead(this->pin) / 1024.0 * 5000.0;
