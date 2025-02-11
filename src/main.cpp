@@ -177,23 +177,16 @@ void setup() {
     Wire.write(0xFF);
     Wire.endTransmission();
 
-    delay(500);
-    Wire.beginTransmission(0x20);
-    Wire.write(0x13);
-    Wire.write(0x00);
-    Wire.endTransmission();
-
-    delay(500);
-    Wire.beginTransmission(0x20);
-    Wire.write(0x13);
-    Wire.write(0xFF);
-    Wire.endTransmission();
-
     temp.begin();
     tbdty.begin();
     phGloabl.begin();
     DO.begin();
-    //sal.begin(); //also tds & ec
+    sal.begin(); //also tds & ec
+
+    Wire.beginTransmission(0x20);
+    Wire.write(0x13);
+    Wire.write(0x00);
+    Wire.endTransmission();
 
 
     #ifndef CELLULAR
