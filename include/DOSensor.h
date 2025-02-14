@@ -6,6 +6,7 @@
 #include <Wire.h>
 #include <sequencer2.h>
 #include <Ezo_i2c_util.h>
+#include "ioExtender.h"
 
 #define urmom 0x97
 
@@ -17,6 +18,8 @@ class DOSensor    {
         static DOSensor& get();
         void begin();
         bool readDO(float* DO, float salinity, float temp);
+        void sleep();
+        void wake();
         static constexpr short EN_O = 27;  //used to turn off the circuit to save power (~2.9mA)
 
 

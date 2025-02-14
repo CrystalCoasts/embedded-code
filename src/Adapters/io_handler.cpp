@@ -268,7 +268,7 @@ bool saveCSVData(fs::FS &fs, const String& data) {
             timeinfo = get_current_time();
             filename = directoryPath + "/" + String(timeinfo.tm_mon+1) + '-' + String(timeinfo.tm_mday) + '-' + String(timeinfo.tm_year) + "-data.csv";
         }
-
+        
         file = fs.open(filename, FILE_APPEND);
         if(!file)    {       //if cant open file to append/doesn't exist, create said file and write the headers
             Serial.println("Couldnt open file to append/write. Creating new file");
@@ -285,7 +285,7 @@ bool saveCSVData(fs::FS &fs, const String& data) {
         else {
             Serial.println("Failed to save data.");
         }
-
+ 
         file.close();
         xSemaphoreGive(sdCardMutex);
         xSemaphoreGive(simCardMutex);
@@ -315,12 +315,12 @@ bool saveJsonData(fs::FS &fs, const String &data) {
         // }
         
         String filename;
-        if (!is_time_synced) {
+        timeinfo = get_current_time();
+        if (is_time_synced() == false) {
             Serial.println("Failed to get local time.");
             Serial.println("Data will not be saving in JSON format.");
         }else   {
             //updateSystemTime(timeinfo);
-            timeinfo = get_current_time();
             filename = String(directoryPath) + "/" + (timeinfo.tm_mon + 1) + '-' + timeinfo.tm_hour + '-' + (timeinfo.tm_year) + "-data.json";
             if(!(file = fs.open(filename, FILE_APPEND))) {
                 Serial.println("Failed to open JSON file for writing.");
@@ -333,6 +333,7 @@ bool saveJsonData(fs::FS &fs, const String &data) {
                 Serial.println("Failed to save data.");
                 Serial.println(file.println());
             }
+
         }
 
         

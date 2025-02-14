@@ -36,6 +36,7 @@ struct tm get_current_time() {
     if (!getLocalTime(&timeinfo)) {
         msg =  RTC_TAG + " Failed to obtain time";
         Serial.println(msg);
+        time_synced = false;
     } else {
         timeinfo.tm_year += 1900; // Adjust the year here
     }
@@ -46,8 +47,10 @@ bool getCurrentTime(tm timeinfo) {        //Cellular
     if(is_time_synced())   {
         getLocalTime(&timeinfo, 500);
     }else{
-        if(!sim.isGprsConnected())
+        if(!sim.isGprsConnected())  {
+            time_synced = false;
             return false;
+        }
         std::string clk = sim.sendData("AT+CCLK?");
         
         // Extract the quoted time string
@@ -56,6 +59,7 @@ bool getCurrentTime(tm timeinfo) {        //Cellular
         if (start == std::string::npos || end == std::string::npos) {
             Serial.println("Error: Could not find time string in response!");
             //return timeinfo; // Return empty struct
+            time_synced = false;
             return false;
         }
         clk = clk.substr(start + 1, end - start - 1);  // Extract time string
@@ -90,8 +94,12 @@ bool getCurrentTime(tm timeinfo) {        //Cellular
 
         Serial.printf("Parsed Time: %04d/%02d/%02d %02d:%02d:%02d\n", 
                     year, month, day, hour, minute, second);
-        updateSystemTime(timeinfo);        
-        time_synced = true;
+        updateSystemTime(timeinfo);
+        if(year < 2000) {
+            time_synced = false;
+        }else{
+            time_synced=true;
+        }
         return true;
     }
 }
@@ -180,7 +188,9 @@ void updateSystemTime(tm newTime) {
         Serial.printf("[RTC_TAG] Verified System Time: %04d-%02d-%02d %02d:%02d:%02d\n",
                       verifiedTime.tm_year + 1900, verifiedTime.tm_mon + 1, verifiedTime.tm_mday,
                       verifiedTime.tm_hour, verifiedTime.tm_min, verifiedTime.tm_sec);
+        time_synced = true;
     } else {
+        time_synced = false;
         Serial.println("[RTC_TAG] Failed to retrieve updated time!");
     }
     //getLocalTime(&verifiedTime);

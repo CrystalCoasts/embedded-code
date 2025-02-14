@@ -22,8 +22,6 @@ TempSensor& TempSensor::Get(){
 void TempSensor::begin(){
     dht.begin();
     sensors.begin();
-
-    
 }
 
 bool TempSensor::readTemp(TEMP tempScale, float* temperature)   {

@@ -5,6 +5,7 @@
 #include <Wire.h>
 #include <sequencer2.h>
 #include <Ezo_i2c_util.h>
+#include "ioExtender.h"
 
 enum EC {SAL, TDS, EC, SG};
 
@@ -19,6 +20,7 @@ public:
     void DisableAllReadings();
     void calibrate();
     void sleep();
+    void wake();
     static constexpr short EN_S = 27;
 
 private:

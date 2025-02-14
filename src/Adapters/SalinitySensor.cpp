@@ -10,8 +10,7 @@ void SalinitySensor::begin() {
     bool calibrated, tempComp, kFactor;
     char parsedData[32];
     delay(500);
-    pinMode(EN_S, OUTPUT);
-    digitalWrite(EN_S, HIGH);
+    mcpGlobal.pinModeB(0,0);
     
     ec.send_cmd("Cal,?");
     delay(500);
@@ -88,7 +87,7 @@ void SalinitySensor::EnableDisableSingleReading(uint8_t readOption, uint8_t data
 }
 
 bool SalinitySensor::readSalinity(float* salinity) {
-
+    wake();
     //enable only salinity reading
     EnableDisableSingleReading(EC, 0);
     EnableDisableSingleReading(TDS, 0);
@@ -104,17 +103,13 @@ bool SalinitySensor::readSalinity(float* salinity) {
     //     EnableDisableSingleReading(SAL, 1);
 
     // }
-    pinMode(EN_S, OUTPUT);
-    digitalWrite(EN_S, HIGH);
-
     delay(1200);
     ec.send_cmd("R");
     delay(600);
     ec.receive_cmd(ec_data, sizeof(ec_data));
     // Serial.print("RAW salinity Read: ");
     // Serial.println(ec_data);
-
-    digitalWrite(EN_S, LOW);
+    sleep();
     if (ec_data[0] != '\0') {
         *salinity = atof(ec_data);
         return true;
@@ -124,13 +119,13 @@ bool SalinitySensor::readSalinity(float* salinity) {
 
 bool SalinitySensor::readTDS(float* salinity){
     //enable only TDS reading
+    wake();
     EnableDisableSingleReading(EC, 0);
     EnableDisableSingleReading(TDS, 0);
     EnableDisableSingleReading(SG, 0);
     EnableDisableSingleReading(SAL, 0);
     EnableDisableSingleReading(TDS, 1);
 
-    digitalWrite(EN_S, HIGH);
     delay(600);
     ec.send_cmd("R");
     delay(600);
@@ -144,13 +139,13 @@ bool SalinitySensor::readTDS(float* salinity){
 
 bool SalinitySensor::readEC(float* salinity){
     //enable only EC reading
+    wake();
     EnableDisableSingleReading(SG, 0);
     EnableDisableSingleReading(SAL, 0);
     EnableDisableSingleReading(TDS, 0);
     EnableDisableSingleReading(EC, 0);
     EnableDisableSingleReading(EC, 1);
 
-    digitalWrite(EN_S, HIGH);
     delay(600);
     ec.send_cmd("R");
     delay(600);
@@ -165,6 +160,8 @@ bool SalinitySensor::readEC(float* salinity){
 
 void SalinitySensor::calibrate()    {
 
+    wake();
+    delay(300);
     Serial.println("Clearing previous calibration...");
     ec.send_cmd("Cal,clear");
     delay(300);
@@ -236,8 +233,14 @@ SalinitySensor& SalinitySensor::Get() {
 
 
 void SalinitySensor::sleep() {
-    ec.send_cmd("Sleep");
-    delay(300);
+    // ec.send_cmd("Sleep");
+    // delay(300);
     //digitalWrite(EN_S, LOW);
+    
+    mcpGlobal.digitalWriteB(0,0);
 
+}  
+
+void SalinitySensor::wake() {
+    mcpGlobal.digitalWriteB(0,1);
 }

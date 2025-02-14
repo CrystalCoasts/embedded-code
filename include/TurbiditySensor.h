@@ -4,6 +4,7 @@
 #include <EEPROM.h>
 #include "config.h"
 #include "I2Cadc.h"
+#include "ioExtender.h"
 
 class TurbiditySensor {
 public:

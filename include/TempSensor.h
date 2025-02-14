@@ -28,6 +28,7 @@ public:
     int findDevices();
 
 
+
 private:
     TempSensor();
     DHT dht;
