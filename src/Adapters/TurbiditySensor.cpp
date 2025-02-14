@@ -44,6 +44,7 @@ bool TurbiditySensor::readTurbidity(float* turbidity) {
         return false; // Invalid pointer
     }
 
+    i2cadc.setGain(GAIN_TWOTHIRDS); //sets voltage range to +/- 6.144V
     int sensorValue = i2cadc.readADC(T_ANALOG_PIN);
     sleep();
     float Vout = sensorValue * (VREF / ADC_DIGITAL); // Convert ADC value to voltage

@@ -5,6 +5,7 @@
 //#include "driver/adc.h"
 #include "ph_surveyor.h"
 #include "Arduino.h"
+#include "I2Cadc.h"
 
 //ADC1 CONFIG IS DONE IN ph_surveyor.h + ph_surveyor.cpp
 //THIS IS ONLY HELPER CLASS TO INSTANTIATE 1 INSTANCE
@@ -17,10 +18,14 @@ public:
     static constexpr uint8_t EN = 0;
 
     static pHSensor& Get();
-    void begin();
+    bool begin();
     bool readpH(float* pHValue);
     void sleep();
     void wakeup();
+    void cal_mid();
+    void cal_low();
+    void cal_high();
+    void cal_clear();
 
 private:
 

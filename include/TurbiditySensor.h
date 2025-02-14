@@ -3,12 +3,13 @@
 
 #include <EEPROM.h>
 #include "config.h"
+#include "I2Cadc.h"
 
 class TurbiditySensor {
 public:
     static constexpr short READ_SAMPLES = 25;
     //static constexpr short T_ANALOG_PIN = 39; // ADC1 ESP PIN
-    static constexpr short T_ANALOG_PIN = 0; // ADC0 I2C
+    static constexpr short T_ANALOG_PIN = 1; // ADC0 I2C
     static constexpr uint8_t EEPROM_VCLEAR_ADDRESS = 0;
     static constexpr uint8_t EN = 0;
 

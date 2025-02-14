@@ -8,7 +8,7 @@ class I2Cadc   {
     public:
         static I2Cadc& Get();
         void begin();
-        int16_t readADC(int pin);
+        float readADC(int pin);
         void readDifferential();
         void setGain(adsGain_t gain);
 

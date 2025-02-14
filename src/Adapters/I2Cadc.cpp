@@ -13,7 +13,7 @@ void I2Cadc::begin()    {
     adc1015.begin();
 }
 
-int16_t I2Cadc::readADC(int pin){
+float I2Cadc::readADC(int pin){
     return adc1015.readADC_SingleEnded(pin);
 }
 

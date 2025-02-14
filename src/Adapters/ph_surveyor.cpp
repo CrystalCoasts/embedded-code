@@ -34,6 +34,7 @@ bool Surveyor_pH::begin(){
 
 float Surveyor_pH::read_voltage() {
 	float voltage_mV = 0;
+  i2cadc.setGain(GAIN_ONE);   //sets voltage reading from +/- 4.096V
 	for (int i = 0; i < volt_avg_len; ++i) {
 	#if defined(ESP32)
 	//ESP32 has significant nonlinearity in its ADC, we will attempt to compensate 
@@ -48,8 +49,7 @@ float Surveyor_pH::read_voltage() {
     //voltage_mV += adc1_get_raw(CHANNEL) / 4095.0 * 3300.0 +130;
 
     //I2C adc code
-    i2cadc.setGain(GAIN_ONE);   //sets voltage reading from +/- 4.096V
-    voltage_mV += i2cadc.readADC(this->pin) / 4095.0 * 3300.0 +130;
+    voltage_mV += (i2cadc.readADC(this->pin) / 2048) * 4096.0;
 	#else
 		//voltage_mV += adc1_get_raw(CHANNEL) / 1024.0 * 5000.0;
     voltage_mV += analogRead(this->pin) / 1024.0 * 5000.0;
