@@ -252,34 +252,34 @@ bool saveCSVData(fs::FS &fs, const String& data) {
         
         String directoryPath = CSV_DIR_PATH;
         File file;
-        if(!fs.exists(directoryPath))  {
+        if(!fs.exists(directoryPath))  {                    //Checks for directory in SD card
             fs.mkdir(directoryPath);
             Serial.println("made directory for csv!");
         }
 
         String filename;
-        if (!is_time_synced()) {
+        if (!is_time_synced()) {        //Checks to see if the time is synced to NTP
             Serial.println("Failed to get local time.");
-            filename = directoryPath + "/unknown-time.csv";
+            filename = directoryPath + "/unknown-time.csv";     //saves to generic directory
             getCurrentTime(timeinfo);
             // return false;
         }else   {
-            updateSystemTime(timeinfo);
-            timeinfo = get_current_time();
-            filename = directoryPath + "/" + String(timeinfo.tm_mon+1) + '-' + String(timeinfo.tm_mday) + '-' + String(timeinfo.tm_year) + "-data.csv";
+            updateSystemTime(timeinfo);                     //Updates current time
+            timeinfo = get_current_time();                  //sets time to variable
+            filename = directoryPath + "/" + String(timeinfo.tm_mon+1) + '-' + String(timeinfo.tm_mday) + '-' + String(timeinfo.tm_year) + "-data.csv"; //directory path
         }
-        
-        file = fs.open(filename, FILE_APPEND);
+
+        file = fs.open(filename, FILE_APPEND);  //opens the directory path to append
         if(!file)    {       //if cant open file to append/doesn't exist, create said file and write the headers
             Serial.println("Couldnt open file to append/write. Creating new file");
-            String header = "Humidity, Temperature, Turbidity, Salinity, TDS, pH, Disolved Oxygen, Month, Day, Year, Time";
+            String header = "Humidity, Temperature, Turbidity, Salinity, TDS, pH, Disolved Oxygen, Month, Day, Year, Time"; 
             file = fs.open(filename, FILE_WRITE, true);
             file.println(header);
         }else{
             Serial.println("Opened file for appending!");
         }
            
-        if(file.println(data)) {
+        if(file.println(data)) {        //checks if it can print data to SD
             Serial.println("Data saved successfully.");
         } 
         else {
@@ -300,12 +300,12 @@ bool saveJsonData(fs::FS &fs, const String &data) {
     if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000)) && xSemaphoreTake(simCardMutex, pdMS_TO_TICKS(5000))) {
         struct tm timeinfo;
         Serial.println("Saving data to JSON file...");
-        Serial.println(data);
         File file;
+        Serial.println(data);
 
         String directoryPath = JSON_DIR_PATH;
-        if(!fs.exists(directoryPath))  {
-            fs.mkdir(directoryPath);
+        if(!fs.exists(directoryPath))  {        //checks for the directory
+            fs.mkdir(directoryPath);            //makes directory  
             Serial.println("made directory for json!");
         }
 
@@ -315,19 +315,19 @@ bool saveJsonData(fs::FS &fs, const String &data) {
         // }
         
         String filename;
-        timeinfo = get_current_time();
-        if (is_time_synced() == false) {
+        timeinfo = get_current_time();      //sets current time to time variable to read from.
+        if (is_time_synced() == false) {    //checks if time has been synced
             Serial.println("Failed to get local time.");
             Serial.println("Data will not be saving in JSON format.");
         }else   {
             //updateSystemTime(timeinfo);
-            filename = String(directoryPath) + "/" + (timeinfo.tm_mon + 1) + '-' + timeinfo.tm_hour + '-' + (timeinfo.tm_year) + "-data.json";
-            if(!(file = fs.open(filename, FILE_APPEND))) {
+            filename = String(directoryPath) + "/" + (timeinfo.tm_mon + 1) + '-' + timeinfo.tm_hour + '-' + (timeinfo.tm_year) + "-data.json";      //Sets file name
+            if(!(file = fs.open(filename, FILE_APPEND))) {  //Checks if the file opens for appending in the directory
                 Serial.println("Failed to open JSON file for writing.");
-                file = fs.open(filename, FILE_WRITE, true);
+                file = fs.open(filename, FILE_WRITE, true);     //opens file for writing if cannot open for appending
             }
 
-            if (file.println(data)) {
+            if (file.println(data)) {       //Checks if it can write data to the file
                 Serial.println("Data saved successfully.");
             } else {
                 Serial.println("Failed to save data.");
@@ -338,7 +338,7 @@ bool saveJsonData(fs::FS &fs, const String &data) {
 
         
         file.close();
-        xSemaphoreGive(sdCardMutex);
+        xSemaphoreGive(sdCardMutex);        //gives access for the Sd card and sim card mutex for use in other functions
         xSemaphoreGive(simCardMutex);
         return true;
     } else {
