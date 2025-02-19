@@ -11,6 +11,8 @@
 #include <time.h>
 #include <HttpClient.h>
 #include "esp_heap_caps.h"
+#include "io_handler.h"
+#include "regex"
 
 
 #define mySerial2 Serial1

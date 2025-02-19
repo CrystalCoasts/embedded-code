@@ -6,6 +6,7 @@
 #include "TempSensor.h"
 #include "dallasTemperature.h"
 #include <Adafruit_MCP23X17.h>
+#include "globals.h"
 
 // extern bool isConnected;
 
@@ -15,7 +16,7 @@ extern SemaphoreHandle_t simCardMutex;
 const char* DATA_URL = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.com/api/data";
 // const char* DATA_URL = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.com/api/test-data";
 
-const char server[]   = "https://d17e66a7-c349-4d03-9453-cf90701e7aaa.mock.pstmn.io";
+const char server[]   = "https://128bdb57-9d10-4eb7-b3db-3aa86f885e1c.mock.pstmn.io";
 const char resource[] = "/post";
 const int  port       = 443;
 
@@ -107,7 +108,7 @@ void readSensorData(SensorData &data)
 
 bool uploadData(String jsonData) {
     int responseCode = 200;
-    if(xSemaphoreTake(simCardMutex, pdMS_TO_TICKS(5000)))    {
+    // if(xSemaphoreTake(simCardMutex, pdMS_TO_TICKS(5000)))    {
         #ifndef CELLULAR
         if (WiFi.status() != WL_CONNECTED) {
             Serial.println("Not connected to WiFi. Data not uploaded.");
@@ -123,14 +124,19 @@ bool uploadData(String jsonData) {
         #else
             if(!sim.isConnected())  {
                 Serial.println("Not connected to cellular network. Data not uploaded.");
-                xSemaphoreGive(simCardMutex);
-                return false;
+                if(sim.isGprsConnected())   {
+                    Serial.println("Will attempt to upload in next loop.");
+                }else   {
+                    Serial.println("Still not connected to gprs, will skip and try to connect next cycle.");
+                    return false;
+                }
+                // xSemaphoreGive(simCardMutex);
             }else   {
                 if(sim.connected == false)  {
                     if(!sim.serverConnect(server, resource))    {
                         Serial.println("Server could not connect");
                         sim.connected=false;
-                        xSemaphoreGive(simCardMutex);
+                        // xSemaphoreGive(simCardMutex);
                         return false;
                     }
                     else{
@@ -138,11 +144,11 @@ bool uploadData(String jsonData) {
                         sim.setJsonHeader();
                         Serial.println("Server Connected!");
                     }
-                }else   {
+               // }else   {
                     Serial.println("Is server connected?");
                     if(!sim.IsServerConnected())    {
                         Serial.println("Server is not connected... Attmpting to connect on next cycle.");
-                        xSemaphoreGive(simCardMutex);
+                        // xSemaphoreGive(simCardMutex);
                         return false;
                     }else   {
                         Serial.println("attempting to send data");
@@ -152,8 +158,8 @@ bool uploadData(String jsonData) {
                 }
             }
         #endif
-        xSemaphoreGive(simCardMutex);
-    }
+    //     xSemaphoreGive(simCardMutex);
+    // }
     
     // if (httpResponseCode > 0) {
     //     String response = http.getString();
@@ -203,32 +209,99 @@ void validateSensorReadings(SensorData& data) {
     data.oxygenLevelValid = !isnan(data.oxygenLevel) && data.oxygenLevel >= 0;
 }
 
-
-
 String prepareJsonPayload(const SensorData& data) {
     const tm& timeinfo = get_current_time();
-    StaticJsonDocument<256> doc;
-    doc[KEY_HUMIDITY] = String(data.humidity, 3);
-    doc[KEY_TEMPERATURE] = String(data.temperature, 3);
-    doc[KEY_TURBIDITY] = String(data.turbidity, 3);
-    doc[KEY_SALINITY] = String(data.salinity, 3);
-    doc[KEY_TDS] = String(data.tds, 3);
-    doc[KEY_PH] = String(data.pH, 3);
-    doc[KEY_OXYGEN_LEVEL] = String(data.oxygenLevel, 3);
-    doc[KEY_MONTH] = String(timeinfo.tm_mon+1);
-    doc[KEY_DAY] = String(timeinfo.tm_mday);
-    doc[KEY_YEAR] = String(timeinfo.tm_year);
-    doc[KEY_HOUR] = String(timeinfo.tm_hour);
-    doc[KEY_MINUTE] = String(timeinfo.tm_min);
-    doc[KEY_SECOND] = String(timeinfo.tm_sec);
+    StaticJsonDocument<1024> doc;
+
+    //Creates readInfo array
+    JsonArray jsArr = doc.createNestedArray("readInfo");
+
+    //creates humidity sensor object
+    JsonObject humDoc = jsArr.createNestedObject();
+    humDoc["id"] = "pending";
+    humDoc["type"] = "float";
+    humDoc["value"] = String(data.humidity,3);
+
+    //creates a temperature sensor object
+    JsonObject tempDoc = jsArr.createNestedObject();
+    tempDoc["id"] = "pending";
+    tempDoc["type"] = "float";
+    tempDoc["value"] = String(data.temperature,3);
+
+    //creates a turbidity sensor object
+    JsonObject turbDoc = jsArr.createNestedObject();
+    turbDoc["id"] = "pending";
+    turbDoc["type"] = "float";
+    turbDoc["value"] = String(data.turbidity, 3);
+
+    //creates a salinity sensor object
+    JsonObject salDoc = jsArr.createNestedObject();
+    salDoc["id"] = "pending";
+    salDoc["type"] = "float";
+    salDoc["value"] = String(data.salinity,3);
+
+    //creates a conductivity sensor object
+    JsonObject ecDoc = jsArr.createNestedObject();
+    ecDoc["id"] = "pending";
+    ecDoc["type"] = "float";
+    ecDoc["value"] = String(data.ec,3);
+
+    //creates a tds object
+    JsonObject tdsDoc = jsArr.createNestedObject();
+    tdsDoc["id"] = "pending";
+    tdsDoc["type"] = "float";
+    tdsDoc["value"] = String(data.tds,3);
+
+    //creates a ph object
+    JsonObject phDoc = jsArr.createNestedObject();
+    phDoc["id"] = "pending";
+    phDoc["type"] = "float";
+    phDoc["value"] = String(data.pH, 3);
+
+    //creates a dissolved oxygen object
+    JsonObject doDoc = jsArr.createNestedObject();
+    doDoc["id"] = "pending";
+    doDoc["type"] = "float";
+    doDoc["value"] = String(data.oxygenLevel, 3);
+
+    // Add date object
+    JsonObject dateObj = doc.createNestedObject("date");
+    dateObj["year"] = String(timeinfo.tm_year + 1900);
+    dateObj["month"] = String(timeinfo.tm_mon + 1);
+    dateObj["day"] = String(timeinfo.tm_mday);
+    dateObj["hour"] = String(timeinfo.tm_hour);
+    dateObj["minute"] = String(timeinfo.tm_min);
+    dateObj["second"] = String(timeinfo.tm_sec);
+
+    // Add arrayInfo object
+    JsonObject arrayInfo = doc.createNestedObject("arrayInfo");
+    arrayInfo["id"] = "1";
+    arrayInfo["passphrase"] = "randomText";
+
+
     String jsonPayload;
     serializeJson(doc, jsonPayload);
 
     /* FOR CELLULAR AT COMMANDS*/
-    jsonPayload.replace("\"", "\\\"");
-    jsonPayload = "\"" + jsonPayload + "\""; 
     return jsonPayload;
+
+    
+    // doc[KEY_HUMIDITY] = String(data.humidity, 3);
+    // doc[KEY_TEMPERATURE] = String(data.temperature, 3);
+    // doc[KEY_TURBIDITY] = String(data.turbidity, 3);
+    // doc[KEY_SALINITY] = String(data.salinity, 3);
+    // doc[KEY_TDS] = String(data.tds, 3);
+    // doc[KEY_PH] = String(data.pH, 3);
+    // doc[KEY_OXYGEN_LEVEL] = String(data.oxygenLevel, 3);
+    // doc[KEY_MONTH] = String(timeinfo.tm_mon+1);
+    // doc[KEY_DAY] = String(timeinfo.tm_mday);
+    // doc[KEY_YEAR] = String(timeinfo.tm_year);
+    // doc[KEY_HOUR] = String(timeinfo.tm_hour);
+    // doc[KEY_MINUTE] = String(timeinfo.tm_min);
+    // doc[KEY_SECOND] = String(timeinfo.tm_sec);
 }
+
+
 
 String prepareCSVPayload(const SensorData& data)    {
     const tm& timeinfo = get_current_time();

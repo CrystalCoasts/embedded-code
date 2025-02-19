@@ -23,8 +23,6 @@
 // #define PIN_SD_CLK 14
 // #define PIN_SD_D0 13
 
-
-
 struct SensorData {
     float humidity;
     bool humidityValid  = true;
@@ -42,6 +40,7 @@ struct SensorData {
     bool pHValid= true;
     float oxygenLevel;
     bool oxygenLevelValid= true;
+    unsigned int jsonLength;
 };
 
 void readSensorData(SensorData& data);

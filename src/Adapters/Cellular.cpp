@@ -1,4 +1,5 @@
 #include "Cellular.h"
+#include "globals.h"
 
 #define networkTimeout 10000
 #define checkSignal false
@@ -406,14 +407,16 @@ bool Cellular::serverConnect(const char* server, const char* resource)  {
     sim.sendData("AT+CSSLCFG=\"sni\",1," + String(server));
     sim.sendData("AT+CCLK?");
     sim.sendData("AT+SHSSL=1,\"\"");
-    sim.sendData("AT+SHCONF=\"BODYLEN\",512");
+    sim.sendData("AT+SHCONF=\"BODYLEN\",1000");
     sim.sendData("AT+SHCONF=\"HEADERLEN\",350");
     sim.sendData("AT+SHCONF=\"URL\"," + String(server));
     if(sendData("AT+SHCONN").find("ERROR") != std::string::npos)  {
         Serial.println("Error found! Could not connnect!");
+        sim.connected = false;
         return false;
     }
     Serial.println("Successfully connected to " + String(server));
+    sim.connected = true;
     return true;
 }
 
@@ -434,54 +437,71 @@ bool Cellular::setJsonHeader()  {
 }
 
 bool Cellular::sendPostRequest(String jsonPayload) {
-    //Serial.println(jsonPayload);
+    Serial.println(jsonPayload);
     std::string err;
-    int jsonBits = 0;
-    for(char c: jsonPayload)  {
-        if(c==':')  {
-            jsonBits++;
-        }
-    }
-    int jsonLength = jsonPayload.length() -2 -(jsonBits*4);
-
+    // int jsonBits = 0;
+    // for(char c: jsonPayload)  {
+    //     if(c==':')  {
+    //         jsonBits++;
+    //     }
+    // }
+    // int jsonLength = jsonPayload.length() -2 -(jsonBits*4);    
+    jsonLength = jsonPayload.length();
+    jsonPayload.replace("\"", "\\\"");
+    jsonPayload = "\"" + jsonPayload + "\""; 
 
     sim.sendData("AT+SHBOD=" + jsonPayload + "," + String(jsonLength));
     sim.sendData("AT+SHBOD?");
-    sim.sendData("AT+SHREQ=" + String(resource) + ", 3");
+    std::string rv = "NULL";
+    rv = sim.sendData("AT+SHREQ=" + String(resource) + ", 3");
+    for(int i = 0; i < 400; i++)  {
+        i++;
+        i--;
+    }
     // printHeapStatus("HEAP");
-    err = sim.sendData("AT+SHREAD=0, 7");
+    std::regex re(R"((\d+),(\d+)$)"); // Matches two numbers at the end, separated by a comma
+    std::smatch match;
+    int errorCode = 0;
+    int returnBytes = 0;
+    if (std::regex_search(rv, match, re)) {
+        int errorCode = std::stoi(match[1].str()); // Convert to integer
+        int returnBytes = std::stoi(match[2].str()); // Convert to integer
+    } else {
+        Serial.println("Couldnt find matches for the numbers");
+    }
+    err = sim.sendData("AT+SHREAD=0, " + returnBytes);
     return true;
 }
 
 void Cellular::sendPostRequest() {
   Serial.println("Sending POST request...");
 
-  sim.sendData("AT+CSSLCFG=\"sslversion\",1,3");
-  sim.sendData("AT+CSSLCFG=\"sni\",1,\"https://d17e66a7-c349-4d03-9453-cf90701e7aaa.mock.pstmn.io\"");
-  sim.sendData("AT+CCLK?");
-  sim.sendData("AT+SHSSL=1,\"\"");
-  sim.sendData("AT+SHCONF=\"BODYLEN\",1024");
-  sim.sendData("AT+SHCONF=\"HEADERLEN\",350");
-  sim.sendData("AT+SHCONF=\"URL\",\"https://d17e66a7-c349-4d03-9453-cf90701e7aaa.mock.pstmn.io\"");
+//   sim.sendData("AT+CSSLCFG=\"sslversion\",1,3");
+//   sim.sendData("AT+CSSLCFG=\"sni\",1,\"https://d17e66a7-c349-4d03-9453-cf90701e7aaa.mock.pstmn.io\"");
+//   sim.sendData("AT+CCLK?");
+//   sim.sendData("AT+SHSSL=1,\"\"");
+//   sim.sendData("AT+SHCONF=\"BODYLEN\",1024");
+//   sim.sendData("AT+SHCONF=\"HEADERLEN\",350");
+//   sim.sendData("AT+SHCONF=\"URL\",\"https://d17e66a7-c349-4d03-9453-cf90701e7aaa.mock.pstmn.io\"");
 
-  if(sim.sendData("AT+SHCONN").find("ERROR") != std::string::npos)  {
-    Serial.println("Error found! Could not connnect!");
-    return;
-  }
+//   if(sim.sendData("AT+SHCONN").find("ERROR") != std::string::npos)  {
+//     Serial.println("Error found! Could not connnect!");
+//     return;
+//   }
 
-  sim.sendData("AT+SHSTATE?");
-  sim.sendData("AT+SHCHEAD");
-  sim.sendData("AT+SHAHEAD=\"Content-Type\", \"application/json\"");
+//   sim.sendData("AT+SHSTATE?");
+//   sim.sendData("AT+SHCHEAD");
+//   sim.sendData("AT+SHAHEAD=\"Content-Type\", \"application/json\"");
 
-  sim.sendData("AT+SHAHEAD=\"User-Agent\",\"curl/7.47.0\"");
-  sim.sendData("AT+SHAHEAD=\"Cache-control\", \"no-cache\"");
-  sim.sendData("AT+SHAHEAD=\"Connection\", \"keep-alive\"");
-  sim.sendData("AT+SHAHEAD=\"Accept\", \"*/*\"");   
+//   sim.sendData("AT+SHAHEAD=\"User-Agent\",\"curl/7.47.0\"");
+//   sim.sendData("AT+SHAHEAD=\"Cache-control\", \"no-cache\"");
+//   sim.sendData("AT+SHAHEAD=\"Connection\", \"keep-alive\"");
+//   sim.sendData("AT+SHAHEAD=\"Accept\", \"*/*\"");   
   sim.sendData("AT+SHBOD=\"{\\\"success\\\": \\\"true\\\"}\",19");
   sim.sendData("AT+SHBOD?");
   sim.sendData("AT+SHREQ=\"/post\", 3");
   sim.sendData("AT+SHREAD=0, 6");
-  sim.sendData("AT+SHDISC");
+//   sim.sendData("AT+SHDISC");
 }
 
 void Cellular::serverDisconnect()   {

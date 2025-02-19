@@ -13,6 +13,7 @@
 #include "driver/i2c.h"
 #include <esp_task_wdt.h>
 
+#include "globals.h"
 
 
 // Sensor headers
@@ -79,7 +80,7 @@ const uint64_t SYSTEM_POWER_ON = 25 * MINUTE_US;
 volatile uint64_t USER_POWER_ON = 5 * HOUR_US;
 
 uint64_t SYSTEM_POWER_OFF = 30 * MINUTE_MS;  
-const uint64_t SENSOR_TASK_TIMER =  10000;  //HALF_MINUTE_MS; // 30 seconds, for tasks
+const uint64_t SENSOR_TASK_TIMER =  30000;  //HALF_MINUTE_MS; // 30 seconds, for tasks
 
 //tasks semaphores
 SemaphoreHandle_t sdCardMutex;
@@ -142,6 +143,25 @@ void setup() {
         Serial.println("SD Mount successful!");
     }
 
+    
+    #ifndef CELLULAR
+        Wire.begin(); // initialize early to ensure sensors can use it
+        Initialize WiFi we need to continue even if wifi fails
+        WiFi.begin(SSID, PASSWD);
+        if (WiFi.status() == WL_CONNECTED){
+            String msg = SD_TAG + String (" WiFi connected");
+            Serial.println(msg);
+            isConnected = true;
+        }
+    #else
+        sim.begin();
+        if(sim.isGprsConnected())  {
+            String msg = SD_TAG + String ("Cellular connected");
+            Serial.println(msg);
+            isConnected = true;
+        }
+    #endif
+
     // File myfile = SD.open("/test.txt", FILE_APPEND);
     // if(!myfile) 
     //     Serial.println("couldnt open txt file in root");
@@ -191,23 +211,6 @@ void setup() {
     // delay(500);
 
 
-    #ifndef CELLULAR
-        Wire.begin(); // initialize early to ensure sensors can use it
-        Initialize WiFi we need to continue even if wifi fails
-        WiFi.begin(SSID, PASSWD);
-        if (WiFi.status() == WL_CONNECTED){
-            String msg = SD_TAG + String (" WiFi connected");
-            Serial.println(msg);
-            isConnected = true;
-        }
-    #else
-        sim.begin();
-        if(sim.isGprsConnected())  {
-            String msg = SD_TAG + String ("Cellular connected");
-            Serial.println(msg);
-            isConnected = true;
-        }
-    #endif
 
     // esp_task_wdt_config_t config = {
 
@@ -336,6 +339,7 @@ void uploadTask(void *pvParameters) {
         #else
             if(!sim.isGprsConnected()){
                     Serial.println("Cellular not connected.");
+                    sim.gprsConnect();
                     vTaskDelay(pdMS_TO_TICKS(5000)); // Delay before next execution cycle
                     continue;
             }
@@ -350,55 +354,62 @@ void uploadTask(void *pvParameters) {
             }
 
             String fileName;
-            while (file = root.openNextFile()) { // openNext(&root, O_READ)) { 
-                if (file.isDirectory()) {
-                    file.close();
-                    continue;
-                }
+            if(xSemaphoreTake(simCardMutex, pdMS_TO_TICKS(5000)) && xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000)))    {
 
-                fileName = file.name();
-                if (String(fileName).startsWith(".") || !String(fileName).endsWith(".json")) {
-                    file.close();
-                    SD.remove(fileName);
-                    continue;
-                }
+                while (file = root.openNextFile()) { // openNext(&root, O_READ)) { 
+                    if (file.isDirectory()) {
+                        file.close();
+                        continue;
+                    }
 
-                uploadDataTaskRunning = true;
-                bool allLinesUploaded = true;
-                String jsonLine;
-                char ch;
-                while (file.available()) {
-                    ch = file.read();
-                    if (ch == '\n' || !file.available()) {
-                        if (!jsonLine.isEmpty()) {
-                            jsonLine.trim();
-                            if (!uploadData(jsonLine)) {
-                                Serial.println("Failed to upload: " + jsonLine);
-                                allLinesUploaded = false;
-                                uploadDataTaskRunning = false;
-                                break;
+                    fileName = file.name();
+                    if (String(fileName).startsWith(".") || !String(fileName).endsWith(".json")) {
+                        file.close();
+                        SD.remove(fileName);
+                        continue;
+                    }
+
+                    uploadDataTaskRunning = true;
+                    bool allLinesUploaded = true;
+                    String jsonLine;
+                    char ch;
+                    while (file.available()) {
+                        ch = file.read();
+                        if (ch == '\n' || !file.available()) {
+                            if (!jsonLine.isEmpty()) {
+                                jsonLine.trim();
+                                if (!uploadData(jsonLine)) {
+                                    Serial.println("Failed to upload: " + jsonLine);
+                                    allLinesUploaded = false;
+                                    uploadDataTaskRunning = false;
+                                    break;
+                                }
+                                vTaskDelay(pdMS_TO_TICKS(2000));
+                                jsonLine = ""; // Reset the line buffer
                             }
-                            vTaskDelay(pdMS_TO_TICKS(2000));
-                            jsonLine = ""; // Reset the line buffer
+                        } else {
+                            jsonLine += ch;
                         }
-                    } else {
-                        jsonLine += ch;
+                    }
+
+                    uploadDataTaskRunning = false;
+                    file.close();
+                    if (allLinesUploaded) {
+                        SD.remove(String(JSON_DIR_PATH) + "/" + String(fileName)); // Ensure the path is correct
+                        Serial.println(String(fileName) + " uploaded and deleted successfully.");
+                        sim.connected = false;
+                        sim.serverDisconnect();
+                    } else {    
+                        Serial.println("Not all lines in the file were uploaded successfully.");
                     }
                 }
-
-                uploadDataTaskRunning = false;
-                file.close();
-                if (allLinesUploaded) {
-                    SD.remove(String(JSON_DIR_PATH) + "/" + String(fileName)); // Ensure the path is correct
-                    Serial.println(String(fileName) + " uploaded and deleted successfully.");
-                    sim.connected = false;
-                    sim.serverDisconnect();
-                } else {    
-                    Serial.println("Not all lines in the file were uploaded successfully.");
-                }
+                xSemaphoreGive(simCardMutex);
+                xSemaphoreGive(sdCardMutex);
+            }else   {
+                Serial.println("Couldnt get SD and Sim mutex");
             }
             root.close();
-            vTaskDelay(pdMS_TO_TICKS(10000)); // Delay before next execution cycle
+            vTaskDelay(pdMS_TO_TICKS(5000)); // Delay before next execution cycle
         }
     //}
         
