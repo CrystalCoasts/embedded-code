@@ -1,14 +1,14 @@
 #include "Cellular.h"
 #include "globals.h"
 
-#define networkTimeout 10000
+#define networkTimeout 60000    //1 Minute of network connection waiting
 #define checkSignal false
 
 const char apn[]  =  "m2mglobal"; //"iot.1nce.net";     //SET TO YOUR APN
 const char gprsUser[] = "";
 const char gprsPass[] = "";
 
-const char server[]   =  "https://d17e66a7-c349-4d03-9453-cf90701e7aaa.mock.pstmn.io";
+const char server[]   =  "https://128bdb57-9d10-4eb7-b3db-3aa86f885e1c.mock.pstmn.io";
 const char resource[] = "/post";
 const int  port       = 443;
 
@@ -201,6 +201,11 @@ void Cellular::modemRestart(){
 bool Cellular::gprsConnect()    {
 
     if(!sim.isGprsConnected())  {
+
+        digitalWrite(PWR_PIN, HIGH);
+        delay(300);
+        digitalWrite(PWR_PIN, LOW);
+    
         Serial.println("Initializing modem...");
         if (!modem.init()) {
             Serial.println("Failed to restart modem, attempting to continue without restarting");
@@ -373,31 +378,6 @@ std::string Cellular::sendData(String command) {
   // Print the response to the serial monitor
   Serial.println(buffer.c_str());
   return buffer;
-
-// char buffer[512];  // Adjust size based on expected response
-// int index = 0;
-
-// while (millis() - startTime < timeout) {
-//   while (mySerial2.available()) {
-//     char c = mySerial2.read();
-//     if (index < sizeof(buffer) - 1) {
-//       buffer[index++] = c;
-//     } else {
-//       break;  // Prevent buffer overflow
-//     }
-    
-//     buffer[index] = '\0';  // Null-terminate string
-
-//     if (strstr(buffer, "OK") || strstr(buffer, "ERROR")) {
-//       goto exitLoop;
-//     }
-//   }
-// }
-// exitLoop:
-// Serial.println(buffer);
-// delay(2000);
-// return std::string(buffer);  // Convert char array to std::string
-
 }
 
 bool Cellular::serverConnect(const char* server, const char* resource)  {
@@ -418,6 +398,7 @@ bool Cellular::serverConnect(const char* server, const char* resource)  {
     Serial.println("Successfully connected to " + String(server));
     sim.connected = true;
     return true;
+
 }
 
 bool Cellular::setJsonHeader()  {
@@ -453,23 +434,123 @@ bool Cellular::sendPostRequest(String jsonPayload) {
     sim.sendData("AT+SHBOD=" + jsonPayload + "," + String(jsonLength));
     sim.sendData("AT+SHBOD?");
     std::string rv = "NULL";
-    rv = sim.sendData("AT+SHREQ=" + String(resource) + ", 3");
-    for(int i = 0; i < 400; i++)  {
-        i++;
-        i--;
+    
+    mySerial2.println("AT+SHREQ=" + String(resource) + ",3");
+    Serial.println("AT+SHREQ=" + String(resource) + ",3");
+
+    // Variables to store the response
+    std::string buffer = "";
+    unsigned long startTime = millis();
+    const unsigned long timeout = 60000; // Timeout in milliseconds
+
+    // Read the response
+    while (millis() - startTime < timeout) {
+        while (mySerial2.available()) {
+            char c = mySerial2.read();
+            buffer += c;
+
+            // Check for termination keywords
+            if (buffer.find("SHREQ") != std::string::npos || buffer.find("ERROR") != std::string::npos) {
+                for(int i = 0; i<18; i++)    {
+                    c = mySerial2.read();
+                    buffer+=c;
+                }
+                break;
+            }
+        }
+        // Break if we already found "OK" or "ERROR"
+        if (buffer.find("SHREQ") != std::string::npos || buffer.find("ERROR") != std::string::npos) {
+            break;
+        }
     }
+    // Print the response to the serial monitor
+    Serial.println(buffer.c_str());
+
+    buffer.erase(std::remove_if(buffer.begin(), buffer.end(),
+                [](unsigned char c) { return std::isspace(c); }), buffer.end());
+
     // printHeapStatus("HEAP");
-    std::regex re(R"((\d+),(\d+)$)"); // Matches two numbers at the end, separated by a comma
+    std::regex re(R"((\d+),(\d+))"); // More flexible regex
     std::smatch match;
     int errorCode = 0;
     int returnBytes = 0;
-    if (std::regex_search(rv, match, re)) {
-        int errorCode = std::stoi(match[1].str()); // Convert to integer
-        int returnBytes = std::stoi(match[2].str()); // Convert to integer
-    } else {
-        Serial.println("Couldnt find matches for the numbers");
+    
+    Serial.print("Buffer Content: ");
+    Serial.println(buffer.c_str());
+    
+    // Print buffer hex values
+    Serial.print("Buffer Hex: ");
+    for (size_t i = 0; i < buffer.length(); i++) {
+        Serial.print("0x");
+        Serial.print((uint8_t)buffer[i], HEX);
+        Serial.print(" ");
     }
-    err = sim.sendData("AT+SHREAD=0, " + returnBytes);
+    Serial.println();
+    
+    // Clean buffer (remove non-printable characters)
+    buffer.erase(std::remove_if(buffer.begin(), buffer.end(),
+                    [](unsigned char c) { return !std::isprint(c); }), buffer.end());
+    
+    if (std::regex_search(buffer, match, re)) {
+        Serial.println("Regex Matched!");
+        Serial.print("Match 1: "); Serial.println(match[1].str().c_str());
+        Serial.print("Match 2: "); Serial.println(match[2].str().c_str());
+    
+        std::string extractedStr = match[2].str();
+        Serial.print("Extracted ReturnBytes String: ");
+        Serial.println(extractedStr.c_str());
+    
+        try {
+            returnBytes = std::stoi(extractedStr);
+            errorCode = std::stoi(match[1].str());
+    
+            Serial.print("Error Code: ");
+            Serial.println(errorCode);
+            Serial.print("Return Bytes: ");
+            Serial.println(returnBytes);
+        } catch (const std::exception& e) {
+            Serial.print("Conversion Error: ");
+            Serial.println(e.what());
+        }
+    } else {
+        Serial.println("Couldn't find matches for the numbers");
+    }
+    
+    char debugBuffer[40];
+    sprintf(debugBuffer, "returnBytes = %d", returnBytes);
+    Serial.println(debugBuffer);
+    
+    sprintf(debugBuffer, "AT+SHREAD=0,%d", returnBytes);
+    sim.sendData(debugBuffer);
+
+    //Begins reading the response from the post request
+    mySerial2.println(debugBuffer);     //sends command to read post request with the recieved bytes of data
+    Serial.println(debugBuffer);
+
+    buffer = "";
+    startTime = millis();
+
+    // Read the response for a 1 minute timeout
+    while (millis() - startTime < timeout) {
+        while (mySerial2.available()) {    
+            char c = mySerial2.read();      //stores information from SIM in buffer
+            buffer += c;
+
+            // Check for termination keywords
+            if (buffer.find(returnBytes) != std::string::npos || buffer.find("ERROR") != std::string::npos) {       //if buffer finds the returnBytes value, start saving data from 0 to the received bytes
+                for(int i = 0; i<returnBytes; i++)    {
+                    c = mySerial2.read();
+                    buffer+=c;
+                }
+                break;
+            }
+        }
+        // Break if we already found "OK" or "ERROR"
+        if (buffer.find(returnBytes) != std::string::npos || buffer.find("ERROR") != std::string::npos) {       //break the timeout
+            break; 
+        }
+    }
+    Serial.println(buffer.c_str()); //print recieved message
     return true;
 }
 
@@ -498,9 +579,40 @@ void Cellular::sendPostRequest() {
 //   sim.sendData("AT+SHAHEAD=\"Connection\", \"keep-alive\"");
 //   sim.sendData("AT+SHAHEAD=\"Accept\", \"*/*\"");   
   sim.sendData("AT+SHBOD=\"{\\\"success\\\": \\\"true\\\"}\",19");
-  sim.sendData("AT+SHBOD?");
-  sim.sendData("AT+SHREQ=\"/post\", 3");
-  sim.sendData("AT+SHREAD=0, 6");
+  sim.sendData("AT+SHBOD?");  
+  mySerial2.println("AT+SHREQ=\"/post\",3");
+  Serial.println("AT+SHREQ=\"/post\",3");
+
+  // Variables to store the response
+  std::string buffer = "";
+  unsigned long startTime = millis();
+  const unsigned long timeout = 60000; // Timeout in milliseconds
+
+  // Read the response
+  while (millis() - startTime < timeout) {
+    while (mySerial2.available()) {
+      char c = mySerial2.read();
+      buffer += c;
+
+      // Check for termination keywords
+      if (buffer.find("SHREQ") != std::string::npos || buffer.find("ERROR") != std::string::npos) {
+        int timeNow = millis();
+        while(millis() - timeNow < 2000)    {
+            c = mySerial2.read();
+            buffer += c;
+        }
+        break;
+      }
+    }
+    // Break if we already found "OK" or "ERROR"
+    if (buffer.find("SHREQ") != std::string::npos || buffer.find("ERROR") != std::string::npos) {
+      break;
+    }
+  }
+  // Print the response to the serial monitor
+  Serial.println(buffer.c_str());
+
+  sim.sendData("AT+SHREAD=0,6");
 //   sim.sendData("AT+SHDISC");
 }
 
