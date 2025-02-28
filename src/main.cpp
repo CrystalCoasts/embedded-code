@@ -76,10 +76,10 @@ unsigned long lastUpdateTime = 0;
 
 //timers
 // volatile uint64_t powerOnTimer = (3600 * 1000) * 2;  // 2 hours
-const uint64_t SYSTEM_POWER_ON = 1 * MINUTE_US;
+const uint64_t SYSTEM_POWER_ON = 5 * MINUTE_US;
 volatile uint64_t USER_POWER_ON = 5 * HOUR_US;
 
-uint64_t SYSTEM_POWER_OFF = 1 * MINUTE_MS;  
+uint64_t SYSTEM_POWER_OFF = 25 * MINUTE_MS;  
 const uint64_t SENSOR_TASK_TIMER =  30000;  //HALF_MINUTE_MS; // 30 seconds, for tasks
 
 //tasks semaphores
