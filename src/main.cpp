@@ -75,11 +75,11 @@ unsigned long lastUpdateTime = 0;
 
 //timers
 // volatile uint64_t powerOnTimer = (3600 * 1000) * 2;  // 2 hours
-const uint64_t SYSTEM_POWER_ON = 25 * MINUTE_US;
+const uint64_t SYSTEM_POWER_ON = 225 * MINUTE_US;
 volatile uint64_t USER_POWER_ON = 5 * HOUR_US;
 
-uint64_t SYSTEM_POWER_OFF = 30 * MINUTE_MS;  
-const uint64_t SENSOR_TASK_TIMER =  10000;  //HALF_MINUTE_MS; // 30 seconds, for tasks
+uint64_t SYSTEM_POWER_OFF = 25 * MINUTE_MS;  
+const uint64_t SENSOR_TASK_TIMER =  30000;  //HALF_MINUTE_MS; // 30 seconds, for tasks
 
 //tasks semaphores
 SemaphoreHandle_t sdCardMutex;
