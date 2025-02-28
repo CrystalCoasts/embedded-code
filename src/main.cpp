@@ -76,10 +76,10 @@ unsigned long lastUpdateTime = 0;
 
 //timers
 // volatile uint64_t powerOnTimer = (3600 * 1000) * 2;  // 2 hours
-const uint64_t SYSTEM_POWER_ON = 5 * MINUTE_US;
+const uint64_t SYSTEM_POWER_ON = 1 * MINUTE_US;
 volatile uint64_t USER_POWER_ON = 5 * HOUR_US;
 
-uint64_t SYSTEM_POWER_OFF = 25 * MINUTE_MS;  
+uint64_t SYSTEM_POWER_OFF = 1 * MINUTE_MS;  
 const uint64_t SENSOR_TASK_TIMER =  30000;  //HALF_MINUTE_MS; // 30 seconds, for tasks
 
 //tasks semaphores
@@ -168,7 +168,7 @@ void setup() {
     batteryLevel = prefs.getUInt("batteryLevel", BATTERY_CHARGE); // Default to full charge if not set
     prefs.end();
     rtc_begin();
-  //  ws.init();
+    ws.init();
 
     //create tasks and setup powerOff timer
     lastUpdateTime = millis(); // Set initial time for battery updates
@@ -341,6 +341,8 @@ void powerOffSequence() {
     Serial.println("Powering off...");
 
     // Load settings, stop tasks, and prepare for shutdown
+    prefs.begin("my_timers", false);
+    prefs.end();
     loadTimerSettings();
     stopSensorTask();
     stopUploadTask();

@@ -6,6 +6,7 @@
 #include "ph_surveyor.h"
 #include "Arduino.h"
 #include "I2Cadc.h"
+#include "ioExtender.h"
 
 //ADC1 CONFIG IS DONE IN ph_surveyor.h + ph_surveyor.cpp
 //THIS IS ONLY HELPER CLASS TO INSTANTIATE 1 INSTANCE

@@ -21,7 +21,7 @@ public:
     void calibrate();
     void sleep();
     void wake();
-    static constexpr short EN_S = 27;
+    static constexpr short EN_S = 0;
 
 private:
     String ecName = "SAL";

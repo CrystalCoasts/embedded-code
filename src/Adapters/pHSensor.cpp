@@ -5,14 +5,15 @@ pHSensor& phGloabl = pHSensor::Get();
 pHSensor::pHSensor() {};
 
 bool pHSensor::begin()  {
-    pinMode(EN, OUTPUT);
-    digitalWrite(EN, HIGH);
+    //pinMode(EN, OUTPUT);
+    //digitalWrite(EN, HIGH);
+    mcpGlobal.pinModeA(EN,0);
     wakeup();
     if(pH.begin())  {
         return true;
     }
     return false;
-    
+    sleep();
 }
 
 bool pHSensor::readpH(float* pHValue) {
@@ -37,12 +38,13 @@ pHSensor& pHSensor::Get()    {
 }
 
 void pHSensor::wakeup() {
-    digitalWrite(EN, HIGH);
-    delay(1000);
+    mcpGlobal.digitalWriteA(EN,HIGH);
+    //digitalWrite(EN, HIGH);
+    delay(200);
 }
 void pHSensor::sleep() {
-    digitalWrite(EN, LOW);
-    delay(1000);
+    mcpGlobal.digitalWriteA(EN, LOW);
+    delay(200);
 }
 
 void pHSensor::cal_mid()  {

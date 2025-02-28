@@ -20,6 +20,7 @@ TempSensor& TempSensor::Get(){
 }
 
 void TempSensor::begin(){
+    
     dht.begin();
     sensors.begin();
 }

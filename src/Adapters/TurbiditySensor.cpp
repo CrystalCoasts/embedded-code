@@ -12,11 +12,11 @@ void TurbiditySensor::begin() {
 
     EEPROM.get(EEPROM_VCLEAR_ADDRESS, vClear); // Retrieve the vClear from EEPROM
     //analogReadResolution(12); // Set ADC resolution to 12-bit
-    pinMode(EN, OUTPUT);
+    //pinMode(EN, OUTPUT);
+    mcpGlobal.pinModeA(EN,0);
     wakeup();
     //pinMode(T_ANALOG_PIN, INPUT);  //GPIO2
     //adcAttachPin(T_ANALOG_PIN);    //GPIO2
-    wakeup();
 }
 
 TurbiditySensor& TurbiditySensor::Get() {
@@ -79,10 +79,11 @@ bool TurbiditySensor::readTurbidity(float* turbidity) {
 
 
 void TurbiditySensor::wakeup() {
-    digitalWrite(EN, HIGH);
-    delay(1000);
+    //digitalWrite(EN, HIGH);
+    mcpGlobal.digitalWriteA(EN,HIGH);
+    delay(200);
 }
 void TurbiditySensor::sleep() {
-    digitalWrite(EN, LOW);
-    delay(1000);
+    mcpGlobal.digitalWriteA(EN,LOW);
+    delay(200);
 }

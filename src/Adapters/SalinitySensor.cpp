@@ -10,8 +10,8 @@ void SalinitySensor::begin() {
     bool calibrated, tempComp, kFactor;
     char parsedData[32];
     delay(500);
-    mcpGlobal.pinModeB(0,0);
-    mcpGlobal.digitalWriteB(0, HIGH);
+    mcpGlobal.pinModeA(EN_S,0);
+    mcpGlobal.digitalWriteA(EN_S, HIGH);
     
     ec.send_cmd("Cal,?");
     delay(500);
@@ -238,10 +238,10 @@ void SalinitySensor::sleep() {
     // delay(300);
     //digitalWrite(EN_S, LOW);
     
-    mcpGlobal.digitalWriteB(0,0);
+    mcpGlobal.digitalWriteA(EN_S, LOW);
 
 }  
 
 void SalinitySensor::wake() {
-    mcpGlobal.digitalWriteB(0,1);
+    mcpGlobal.digitalWriteA(EN_S, HIGH);
 }

@@ -14,7 +14,7 @@ DOSensor &DOSensor::get()
 
 void DOSensor::begin()
 {   
-    mcpGlobal.pinModeB(1,0);
+    mcpGlobal.pinModeA(EN_O,0);
     wake();
     int calibrated = 0, tempComp = 0, salComp = 0;
     char parsedData[32];
@@ -99,9 +99,9 @@ bool DOSensor::parseValue(const char* rawBuff, char* parsedBuff, const char* key
 }
 
 void DOSensor::sleep()  {
-    mcpGlobal.digitalWriteB(1, 0);
+    mcpGlobal.digitalWriteA(EN_O, LOW);
 }
 
 void DOSensor::wake()   {
-    mcpGlobal.digitalWriteB(1,1);
+    mcpGlobal.digitalWriteA(EN_O, HIGH);
 }
