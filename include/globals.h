@@ -13,6 +13,7 @@ extern const uint64_t SENSOR_TASK_TIMER;
 extern const char* JSON_DIR_PATH;
 extern const char* CSV_DIR_PATH;
 
+extern unsigned int jsonLength;
 // Battery Management
 // extern const uint16_t BATTERY_CHARGE;
 extern Preferences prefs;

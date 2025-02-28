@@ -11,6 +11,7 @@ void SalinitySensor::begin() {
     char parsedData[32];
     delay(500);
     mcpGlobal.pinModeB(0,0);
+    mcpGlobal.digitalWriteB(0, HIGH);
     
     ec.send_cmd("Cal,?");
     delay(500);

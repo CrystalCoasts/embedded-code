@@ -175,7 +175,7 @@ void updateSystemTime(tm newTime) {
     if(settimeofday(&tv,NULL) != 0 ) {
         Serial.println("Error: Failed to set system time!");
     }
-    configTime(0, 0, "");  // Clear NTP sync
+    //configTime(0, 0, "");  // Clear NTP sync
 
     // Update the system time with new time
 

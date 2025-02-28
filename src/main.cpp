@@ -13,6 +13,7 @@
 #include "driver/i2c.h"
 #include <esp_task_wdt.h>
 
+#include "globals.h"
 
 
 // Sensor headers
@@ -75,7 +76,7 @@ unsigned long lastUpdateTime = 0;
 
 //timers
 // volatile uint64_t powerOnTimer = (3600 * 1000) * 2;  // 2 hours
-const uint64_t SYSTEM_POWER_ON = 225 * MINUTE_US;
+const uint64_t SYSTEM_POWER_ON = 5 * MINUTE_US;
 volatile uint64_t USER_POWER_ON = 5 * HOUR_US;
 
 uint64_t SYSTEM_POWER_OFF = 25 * MINUTE_MS;  
@@ -110,29 +111,14 @@ void stopUploadTask();
 void stopSensorTask();
 void powerOffSequence();
 
-// OneWire oneWire(41);
-// DallasTemperature sensors(&oneWire);
 Adafruit_MCP23X17 mcp;
 
 void setup() {
-    setCpuFrequencyMhz(240);
+    setCpuFrequencyMhz(160);
     Serial.begin(115200);
     //sensors.begin();
 
     Wire.begin(21,22);
-
-    // int i2c_master_port = 0;
-    // i2c_config_t conf = {
-    //     .mode = I2C_MODE_MASTER,
-    //     .sda_io_num = 21,         // select GPIO specific to your project
-    //     .scl_io_num = 22,         // select GPIO specific to your project
-    //     .scl_pullup_en = GPIO_PULLUP_ENABLE,
-    //     .clk_flags = 0,                          // you can use I2C_SCLK_SRC_FLAG_* flags to choose i2c source clock here
-    // };
-    // i2c_driver_install(I2C_NUM_MAX, I2C_MODE_MASTER, 500, 500, 0);
-
-    //setup spi 
-
     // Initialize SD card
     SPI.begin(SD_SCLK, SD_MISO, SD_MOSI, SD_CS);
     //SPI.setDataMode(SPI_MODE0);
@@ -142,55 +128,7 @@ void setup() {
         Serial.println("SD Mount successful!");
     }
 
-    // File myfile = SD.open("/test.txt", FILE_APPEND);
-    // if(!myfile) 
-    //     Serial.println("couldnt open txt file in root");
-    // else{
-    //     Serial.println("Opened file and writing to it now");
-    //     myfile.println("Check check 123");
-    //     Serial.println("Finished!");
-    // }   
-    // Initialize sensors before wifi
-    // myfile.close();
-
-
-    // Serial.println("Direction set to OUT");
-    // Wire.beginTransmission(0x20);
-    // Wire.write(0x01); // IODIRB register
-    // Wire.write(0x00); // set entire PORT B to output
-    // Wire.endTransmission();
-
-    // Serial.println("output set HIGH");
-    // Wire.beginTransmission(0x20);
-    // Wire.write(0x13);
-    // Wire.write(0xFF);
-    // Wire.endTransmission();
-    // delay(500);
-
-
-    // Serial.println("Output set LOW");
-    // Wire.beginTransmission(0x20);
-    // Wire.write(0x13);
-    // Wire.write(0x00);
-    // Wire.endTransmission();
-    // delay(500);
     
-    mcpGlobal.begin();
-    i2cadc.begin();
-    temp.begin();
-    tbdty.begin();
-    phGloabl.begin();   
-    DO.begin();
-    sal.begin(); //also tds & ec
-
-    // Serial.println("Output set LOW");
-    // Wire.beginTransmission(0x20);
-    // Wire.write(0x13);
-    // Wire.write(0x00);
-    // Wire.endTransmission();
-    // delay(500);
-
-
     #ifndef CELLULAR
         Wire.begin(); // initialize early to ensure sensors can use it
         Initialize WiFi we need to continue even if wifi fails
@@ -209,44 +147,14 @@ void setup() {
         }
     #endif
 
-    // esp_task_wdt_config_t config = {
-
-    //     .timeout_ms = 10000 // Set timeout to 10 seconds
-
-    // };
-
-    // esp_task_wdt_init(&config,true);
-
     
-
-    // pinMode(40,OUTPUT);
-    // digitalWrite(40,HIGH);
-    // pinMode(38,OUTPUT);
-    // digitalWrite(38,HIGH);
-    // delay(200);
-    // mcpGlobal.begin();
-    // mcpGlobal.pinMode(0,OUTPUT);
-    // mcpGlobal.digitalWrite(0,HIGH);
-    // mcp2.begin_I2C();
-    // mcp2.pinMode(8,OUTPUT);
-    // mcp2.digitalWrite(8,HIGH);
-  
-
-    // digitalWrite(40,LOW);
-    // delay(100);
-    // digitalWrite(40,HIGH);
-
-    // uncomment appropriate mcp.begin
-    // if (!mcp.begin_I2C()) {
-    // //if (!mcp.begin_SPI(CS_PIN)) {
-    //     Serial.println("Error.");
-    // }
-
-    // // configure pin for output
-    // mcp.pinMode(0, OUTPUT);
-    // mcp.digitalWrite(0,HIGH);
-
-    //sal.calibrate();
+    mcpGlobal.begin();
+    i2cadc.begin();
+    temp.begin();
+    tbdty.begin();
+    phGloabl.begin();   
+    DO.begin();
+    sal.begin(); //also tds & ec
 
     // Create mutexes
     sdCardMutex = xSemaphoreCreateMutex();
@@ -321,7 +229,7 @@ void sensorTask(void *pvParameters) {
     }
     // Clean up or prepare to delete task
     sensorTaskRunning = false;
-    vTaskDelay(pdMS_TO_TICKS(5000));
+    vTaskDelay(pdMS_TO_TICKS(10000));
     vTaskDelete(NULL); // Optionally delete the task explicitly
 }
 
@@ -336,6 +244,7 @@ void uploadTask(void *pvParameters) {
         #else
             if(!sim.isGprsConnected()){
                     Serial.println("Cellular not connected.");
+                    sim.gprsConnect();
                     vTaskDelay(pdMS_TO_TICKS(5000)); // Delay before next execution cycle
                     continue;
             }
@@ -350,57 +259,62 @@ void uploadTask(void *pvParameters) {
             }
 
             String fileName;
-            while (file = root.openNextFile()) { // openNext(&root, O_READ)) { 
-                if (file.isDirectory()) {
-                    file.close();
-                    continue;
-                }
+            if(xSemaphoreTake(simCardMutex, pdMS_TO_TICKS(5000)) && xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000)))    {  // 
 
-                fileName = file.name();
-                if (String(fileName).startsWith(".") || !String(fileName).endsWith(".json")) {
-                    file.close();
-                    SD.remove(fileName);
-                    continue;
-                }
+                while (file = root.openNextFile()) { // openNext(&root, O_READ)) { 
+                    if (file.isDirectory()) {
+                        file.close();
+                        continue;
+                    }
 
-                uploadDataTaskRunning = true;
-                bool allLinesUploaded = true;
-                String jsonLine;
-                char ch;
-                while (file.available()) {
-                    ch = file.read();
-                    if (ch == '\n' || !file.available()) {
-                        if (!jsonLine.isEmpty()) {
-                            jsonLine.trim();
-                            if (!uploadData(jsonLine)) {
-                                Serial.println("Failed to upload: " + jsonLine);
-                                allLinesUploaded = false;
-                                uploadDataTaskRunning = false;
-                                break;
+                    fileName = file.name();
+                    if (String(fileName).startsWith(".") || !String(fileName).endsWith(".json")) {
+                        file.close();
+                        SD.remove(fileName);
+                        continue;
+                    }
+
+                    uploadDataTaskRunning = true;
+                    bool allLinesUploaded = true;
+                    String jsonLine;
+                    char ch;
+                    while (file.available()) {
+                        ch = file.read();
+                        if (ch == '\n' || !file.available()) {
+                            if (!jsonLine.isEmpty()) {
+                                jsonLine.trim();
+                                if (!uploadData(jsonLine)) {
+                                    Serial.println("Failed to upload: " + jsonLine);
+                                    allLinesUploaded = false;
+                                    uploadDataTaskRunning = false;
+                                    break;
+                                }
+                                vTaskDelay(pdMS_TO_TICKS(2000));
+                                jsonLine = ""; // Reset the line buffer
                             }
-                            vTaskDelay(pdMS_TO_TICKS(2000));
-                            jsonLine = ""; // Reset the line buffer
+                        } else {
+                            jsonLine += ch;
                         }
-                    } else {
-                        jsonLine += ch;
+                    }
+                    sim.serverDisconnect();
+                    uploadDataTaskRunning = false;
+                    file.close();
+                    if (allLinesUploaded) {
+                        SD.remove(String(JSON_DIR_PATH) + "/" + String(fileName)); // Ensure the path is correct
+                        Serial.println(String(fileName) + " uploaded and deleted successfully.");
+                        sim.connected = false;
+                    } else {    
+                        Serial.println("Not all lines in the file were uploaded successfully.");
                     }
                 }
-
-                uploadDataTaskRunning = false;
-                file.close();
-                if (allLinesUploaded) {
-                    SD.remove(String(JSON_DIR_PATH) + "/" + String(fileName)); // Ensure the path is correct
-                    Serial.println(String(fileName) + " uploaded and deleted successfully.");
-                    sim.connected = false;
-                    sim.serverDisconnect();
-                } else {    
-                    Serial.println("Not all lines in the file were uploaded successfully.");
-                }
+                xSemaphoreGive(simCardMutex);
+                xSemaphoreGive(sdCardMutex);
+            }else   {
+                Serial.println("Couldnt get SD and Sim mutex");
             }
             root.close();
             vTaskDelay(pdMS_TO_TICKS(10000)); // Delay before next execution cycle
         }
-    //}
         
 }
 
@@ -476,8 +390,6 @@ void stopSensorTask() {
     if (sensorTaskRunning) {
         sensorTaskRunning = false; // This will cause the task to exit its loop and clean up
     }
-    // digitalWrite(27, LOW);
-    // gpio_hold_en(GPIO_NUM_27);
 }
 
 void readBatteryTask(void *pvParameters) {

@@ -21,6 +21,7 @@ extern TimerHandle_t shutdownTimerHandle;
 extern uint16_t batteryLevel;
 const uint16_t FULL_BATTERY_CHARGE = 10000; // 10000 mAh
 
+unsigned int jsonLength2 = 0 ;
 
 WebSocket& ws = WebSocket::Get(); 
 
