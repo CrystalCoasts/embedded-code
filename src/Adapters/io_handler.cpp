@@ -7,6 +7,7 @@
 #include "dallasTemperature.h"
 #include <Adafruit_MCP23X17.h>
 #include "globals.h"
+#include "I2Cadc.h"
 
 // extern bool isConnected;
 
@@ -75,6 +76,8 @@ void readSensorData(SensorData &data)
     }
 
     delay(5000);
+
+
     Serial.println("Turb");
     data.turbidityValid = tbdty.readTurbidity(&data.turbidity);
     Serial.println("PH");
@@ -89,6 +92,12 @@ void readSensorData(SensorData &data)
     Serial.println("TEMP&HUM");
     data.temperatureValid = temp.readTemperature(FAHRENHEIT, &data.temperature);
     data.humidityValid = temp.readHumidity(&data.humidity);
+
+    i2cadc.setGain(GAIN_TWOTHIRDS);
+    int16_t batt = i2cadc.readADC(3);
+    float battVolt = batt * (6.144/4096);
+    Serial.print("Battery: ");
+    Serial.println(batt);
 
   
 

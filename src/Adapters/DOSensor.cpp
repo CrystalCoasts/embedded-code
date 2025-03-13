@@ -65,7 +65,7 @@ bool DOSensor::readDO(float* DO, float salinity, float temp) {
     // digitalWrite(EN_O, HIGH);
     // delay(300);
     wake();
-    delay(300);
+    delay(500);
     //must send salinity and temp for proper reading
     String command = "S," + String(salinity) + ",ppt";
     ec2.send_cmd(command.c_str());
@@ -78,7 +78,7 @@ bool DOSensor::readDO(float* DO, float salinity, float temp) {
     delay(600);
     ec2.receive_cmd(ec_data, sizeof(ec_data));
     ec2.send_cmd("Sleep");
-    delay(300);
+    delay(500);
     sleep();
     
     if (ec_data[0] != '\0') {

@@ -1,3 +1,17 @@
+/*
+
+Library for pH sensor from Atlas Sensors
+
+I doctured the library up from the original code to support an external 12-bit I2C ADC.
+
+This allows the device to run all devices off of I2C, giving making room for external peripherals that take much
+more data pins such as cameras.
+
+The original code has not been deleted, however I have commented out the ADC reading functions that correlate to
+currently unsupported IO.
+
+*/
+
 
 #if ARDUINO >= 100
 #include "Arduino.h"
@@ -34,7 +48,7 @@ bool Surveyor_pH::begin(){
 
 float Surveyor_pH::read_voltage() {
 	float voltage_mV = 0;
-  i2cadc.setGain(GAIN_ONE);   //sets voltage reading from +/- 4.096V
+  i2cadc.setGain(GAIN_ONE);   //sets voltage reading to +/- 4.096V for I2C ADC
 	for (int i = 0; i < volt_avg_len; ++i) {
 	#if defined(ESP32)
 	//ESP32 has significant nonlinearity in its ADC, we will attempt to compensate 
@@ -49,7 +63,7 @@ float Surveyor_pH::read_voltage() {
     //voltage_mV += adc1_get_raw(CHANNEL) / 4095.0 * 3300.0 +130;
 
     //I2C adc code
-    voltage_mV += (i2cadc.readADC(this->pin) / 2048) * 4096.0;
+    voltage_mV += (i2cadc.readADC(this->pin) / 2048) * 4096.0;    //READING from I2C ADC
 	#else
 		//voltage_mV += adc1_get_raw(CHANNEL) / 1024.0 * 5000.0;
     voltage_mV += analogRead(this->pin) / 1024.0 * 5000.0;

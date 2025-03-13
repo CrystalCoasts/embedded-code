@@ -90,6 +90,7 @@ void SalinitySensor::EnableDisableSingleReading(uint8_t readOption, uint8_t data
 bool SalinitySensor::readSalinity(float* salinity) {
     wake();
     //enable only salinity reading
+    delay(500);
     EnableDisableSingleReading(EC, 0);
     EnableDisableSingleReading(TDS, 0);
     EnableDisableSingleReading(SG, 0);
@@ -110,6 +111,7 @@ bool SalinitySensor::readSalinity(float* salinity) {
     ec.receive_cmd(ec_data, sizeof(ec_data));
     // Serial.print("RAW salinity Read: ");
     // Serial.println(ec_data);
+    delay(500);
     sleep();
     if (ec_data[0] != '\0') {
         *salinity = atof(ec_data);
@@ -121,6 +123,7 @@ bool SalinitySensor::readSalinity(float* salinity) {
 bool SalinitySensor::readTDS(float* salinity){
     //enable only TDS reading
     wake();
+    delay(500);
     EnableDisableSingleReading(EC, 0);
     EnableDisableSingleReading(TDS, 0);
     EnableDisableSingleReading(SG, 0);

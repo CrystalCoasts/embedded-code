@@ -15,15 +15,14 @@
 
 #include "globals.h"
 
-
 // Sensor headers
 #include "TempSensor.h"
 #include "TurbiditySensor.h"
 #include "SalinitySensor.h"
 #include "pHSensor.h"
+#include "cellular.h"
 #include "ioExtender.h"
 #include "Adafruit_MCP23X17.h"
-#include "cellular.h"
 
 //helpers
 #include "io_handler.h" //this includes SdFat32
@@ -35,6 +34,7 @@
 #define WIFI_TAG "[WIFI]"
 #define SENSOR_TAG "[SENSORS]"
 #define MAIN_TAG "[MAIN]"
+#define SIM_TAG "[SIM_CARD]"
 
 // FOR TESTING
 #define QUARTER_MINUTE_MS (MINUTE_MS / 4)
@@ -44,6 +44,7 @@
 #define LED_PIN 2  
 #define BATTERY_PIN 27
 
+// ESP32 LilyGO T-SIM7000G SD Card Pins
 #define SD_MISO     2
 #define SD_MOSI     15
 #define SD_SCLK     14
@@ -53,7 +54,7 @@
 const char* SSID = "seawall";
 const char* PASSWD = "12345678";
 
-//status variables
+// status variables
 bool cardMount = false;
 bool isConnected = false;
 
@@ -61,7 +62,7 @@ bool isConnected = false;
 const char* JSON_DIR_PATH = "/jsonFiles";
 const char* CSV_DIR_PATH = "/csvFiles";
 
-//battery values
+// battery values
 const uint16_t BATTERY_CHARGE = 10000; // 10000 mAh
 const uint8_t BATTERY_DRAW_SLEEP = 60; // 60 mA
 const uint8_t BATTERY_DRAW_ACTIVE = 190; // 190 mA
@@ -74,12 +75,12 @@ volatile uint16_t batteryLevel = BATTERY_CHARGE ; // Default battery level
 unsigned long lastUpdateTime = 0;
 
 
-//timers
+// timers
 // volatile uint64_t powerOnTimer = (3600 * 1000) * 2;  // 2 hours
-const uint64_t SYSTEM_POWER_ON = 5 * MINUTE_US;
+volatile uint64_t SYSTEM_POWER_ON = 5 * MINUTE_US;
 volatile uint64_t USER_POWER_ON = 5 * HOUR_US;
 
-uint64_t SYSTEM_POWER_OFF = 25 * MINUTE_MS;  
+uint64_t SYSTEM_POWER_OFF = 5 * MINUTE_MS;  
 const uint64_t SENSOR_TASK_TIMER =  30000;  //HALF_MINUTE_MS; // 30 seconds, for tasks
 
 //tasks semaphores
@@ -111,25 +112,23 @@ void stopUploadTask();
 void stopSensorTask();
 void powerOffSequence();
 
-Adafruit_MCP23X17 mcp;
-
 void setup() {
-    setCpuFrequencyMhz(160);
+    setCpuFrequencyMhz(80);     //Sets cpu frequency to 80 Mhz to save 20% power
     Serial.begin(115200);
     //sensors.begin();
 
     Wire.begin(21,22);
     // Initialize SD card
-    SPI.begin(SD_SCLK, SD_MISO, SD_MOSI, SD_CS);
-    //SPI.setDataMode(SPI_MODE0);
-    if(!SD.begin(SD_CS, SPI, 4000000))    {        //SdSpiConfig(SD_CS, SHARED_SPI, SD_SCK_MHZ(16))
+    SPI.begin(SD_SCLK, SD_MISO, SD_MOSI, SD_CS);        //SD config
+
+    if(!SD.begin(SD_CS, SPI, 4000000))    { 
         Serial.println("SD Mount failed!");
     }else{
         Serial.println("SD Mount successful!");
     }
-
     
     #ifndef CELLULAR
+        // Wifi init
         Wire.begin(); // initialize early to ensure sensors can use it
         Initialize WiFi we need to continue even if wifi fails
         WiFi.begin(SSID, PASSWD);
@@ -139,6 +138,7 @@ void setup() {
             isConnected = true;
         }
     #else
+        //Cellular init
         sim.begin();
         if(sim.isGprsConnected())  {
             String msg = SD_TAG + String ("Cellular connected");
@@ -146,8 +146,8 @@ void setup() {
             isConnected = true;
         }
     #endif
-
     
+    // Initialize all peripherals
     mcpGlobal.begin();
     i2cadc.begin();
     temp.begin();
@@ -178,13 +178,6 @@ void setup() {
     xTimerStart(shutdownTimerHandle, 0);
     startUploadTask();
 
-    // if(sim.isGprsConnected())    {
-    //     struct tm timeinfo;
-    //     getCurrentTime(&timeinfo);
-    //     updateSystemTime(timeinfo);
-    //     printLocalTime();
-    // }
-
     String msg = MAIN_TAG + String (" Setup done");
     Serial.println(msg);
 }
@@ -192,32 +185,25 @@ void setup() {
 
 
 void loop() {
-   
-   
 }
 
 /* TASKS */
 void sensorTask(void *pvParameters) {
-    sensorTaskRunning = true;
+    
+    sensorTaskRunning = true;   // Used to stop task later when sleeping
     while (sensorTaskRunning) {
             Serial.println("[TASKS] Sensor task running");
-            SensorData data;
-            readSensorData(data);
-            printDataOnCLI(data);
+            SensorData data;    //Initializes sensor data structure
+            readSensorData(data);   // Reads data
+            printDataOnCLI(data);   // Prints onto terminal
             
-            // if(!cardMount)  {
-            //     SD_MMC.begin("/SD", true, true);
-            //     String msg = SD_TAG + String (" Card Mount Failed");
-            //     Serial.println(msg);
-            // }
-            // else  {
-            //     cardMount = true;
-            // }  
-            Serial.println("Starting CSV task");
+            // Data saving to SD
+            Serial.println("Starting CSV task"); 
             if (!saveCSVData(SD, prepareCSVPayload(data))) {
                 Serial.println("[TASKS] Failed to save CSV data.");
                 cardMount = false;
             }
+
             Serial.println("Starting JSON task");
             if (!saveJsonData(SD, prepareJsonPayload(data))) {
                 Serial.println("[TASKS] Failed to save JSON data.");
@@ -236,12 +222,14 @@ void sensorTask(void *pvParameters) {
 void uploadTask(void *pvParameters) {
     for (;;) {
         #ifndef CELLULAR
+            // attempts to connect to wifi to send data
             if (WiFi.status() != WL_CONNECTED) {
                 Serial.println("WiFi not connected. Skipping upload.");
                 vTaskDelay(pdMS_TO_TICKS(5000)); // Delay before next execution cycle
                 continue;
             }
         #else
+            // attempts to connect to the cellular network to send data
             if(!sim.isGprsConnected()){
                     Serial.println("Cellular not connected.");
                     sim.gprsConnect();
@@ -251,6 +239,7 @@ void uploadTask(void *pvParameters) {
 
         #endif
 
+            // Attempts to open json file
             File root, file;
             if (!(root = SD.open(JSON_DIR_PATH, FILE_READ))) {
                 Serial.println("Failed to open directory");
@@ -259,16 +248,16 @@ void uploadTask(void *pvParameters) {
             }
 
             String fileName;
-            if(xSemaphoreTake(simCardMutex, pdMS_TO_TICKS(5000)) && xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000)))    {  // 
+            if(xSemaphoreTake(simCardMutex, pdMS_TO_TICKS(5000)) && xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000)))    { 
 
-                while (file = root.openNextFile()) { // openNext(&root, O_READ)) { 
+                while (file = root.openNextFile()) { // Loops while directory is not empty
                     if (file.isDirectory()) {
                         file.close();
                         continue;
                     }
 
                     fileName = file.name();
-                    if (String(fileName).startsWith(".") || !String(fileName).endsWith(".json")) {
+                    if (String(fileName).startsWith(".") || !String(fileName).endsWith(".json")) {  // If file isn't a json file, deletes the file.
                         file.close();
                         SD.remove(fileName);
                         continue;
@@ -278,9 +267,9 @@ void uploadTask(void *pvParameters) {
                     bool allLinesUploaded = true;
                     String jsonLine;
                     char ch;
-                    while (file.available()) {
+                    while (file.available()) {      // For every line in the json uploads all the data in the file
                         ch = file.read();
-                        if (ch == '\n' || !file.available()) {
+                        if (ch == '\n' || !file.available()) {      // sends data for every json line
                             if (!jsonLine.isEmpty()) {
                                 jsonLine.trim();
                                 if (!uploadData(jsonLine)) {
@@ -299,7 +288,8 @@ void uploadTask(void *pvParameters) {
                     sim.serverDisconnect();
                     uploadDataTaskRunning = false;
                     file.close();
-                    if (allLinesUploaded) {
+
+                    if (allLinesUploaded) { //if all lines in the file were upload, removes file from SD
                         SD.remove(String(JSON_DIR_PATH) + "/" + String(fileName)); // Ensure the path is correct
                         Serial.println(String(fileName) + " uploaded and deleted successfully.");
                         sim.connected = false;
@@ -323,16 +313,29 @@ void uploadTask(void *pvParameters) {
 /* SYSTEM CALLBACKS */
 // Timer callback function
 void shutdownTimerCallback(TimerHandle_t xTimer) {
-    Serial.println("Power-off timer expired. Checking active connection.");
-    if (WiFi.status() == WL_CONNECTED) {
-        // If connected, reset the timer
-        Serial.println("Active WiFi connection detected. Resetting power-off timer.");
-        xTimerReset(shutdownTimerHandle, 0);  // Reset the timer to delay shutdown
-    } else {
-        // No active connection, proceed to power off
-        Serial.println("No active connection. Initiating shutdown sequence.");
+    Serial.println("Power-off timer expired. Checking current time.");
+    struct tm timeinfo = get_current_time();
+
+    #ifndef CELLULAR
+        // if (WiFi.status() == WL_CONNECTED) {
+        //     // If connected, reset the timer
+        //     Serial.println("Active WiFi connection detected. Resetting power-off timer.");
+        //     xTimerReset(shutdownTimerHandle, 0);  // Reset the timer to delay shutdown
+        // } else {
+        //     // No active connection, proceed to power off
+        //     Serial.println("No active connection. Initiating shutdown sequence.");
+        //     powerOffSequence();
+        // }
+    #else
+        if(timeinfo.tm_hour < 6 || timeinfo.tm_hour > 19)      //checks if time if before 6AM or more than 7PM
+            SYSTEM_POWER_ON = 55 * MINUTE_US;      //sets poweroff timer to wak up once an hour
+        else
+            SYSTEM_POWER_ON = 25 * MINUTE_US;      //sets poweroff timer to wake up twice an hour
+
+        Serial.println("Power-off timer expired. Executing power down for" + String((float)(SYSTEM_POWER_OFF/(60000000))));
+
         powerOffSequence();
-    }
+    #endif
 }
 
 
@@ -341,6 +344,9 @@ void powerOffSequence() {
     Serial.println("Powering off...");
 
     // Load settings, stop tasks, and prepare for shutdown
+    for(int i = 0; i <7; i++)   {
+        mcpGlobal.digitalWriteA(i, LOW);    // sets gpio extender IO to low
+    }
     prefs.begin("my_timers", false);
     prefs.end();
     loadTimerSettings();
@@ -364,8 +370,6 @@ void powerOffSequence() {
     prefs.begin("battery_storage", false);
     prefs.putUInt("batteryLevel", batteryLevel);
     prefs.end();
-
-
 
     // Save the timer settings to NVS using rtc_handler's namespace
     saveTimerSettings(USER_POWER_ON);
