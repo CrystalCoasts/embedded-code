@@ -9,23 +9,26 @@ Repo for ESP32 Smart Sea Wall Development code.
 - [Getting Started](#getting-started)
 - [Installation](#installation)
 - [Usage](#usage)
-- [Important to Know](#important-to-know)
-- [Contributing](#contributing)
-- [License](#license)
+- [Issues that are Important to Know](#issues-that-are-important-to-know)
+- [Contribution](#contribution)
+- [Senior Design 2024 Progress](#senior-design-2024-progress)
+- [Current Development](#current-development)
 - [Acknowledgments](#acknowledgments)
-
+***
 ### Introduction
 This was originally a Senior Design Project at FIU from 2024, however, it has migrated to a full-fledged project backed by the Institute of Environment and Department of Architecture starting fall of 2024. This project was created a low-cost solution to monitoring the coastal waters in Miami by placing these embedded systems into sea walls. The device will gather salinity, conductivity, dissolved oxygen, pH, temperature, turbidity, and the humidity of the embedded sensors themselves.
 
 The device is utilizing the cellular network to communicate data to a server, which is then displayed on a website for the public to view.
-
+***
 ## Features
+
 - Cellular communication
 - Low cost
 - Solar powered
 - Low maintanence
 - Modular
 
+***
 ## Components
 - ESP32 Lilygo T-SIM7000G
 - Atlas Salinity and Conductivity Sensor
@@ -36,11 +39,15 @@ The device is utilizing the cellular network to communicate data to a server, wh
 - DHT22 Humidity Sensor
 - 5V Boost Converter
 - Adafruit 12-bit I2C ADC
+- Adafruit OV5640 Camera (Not-Developed)
+***
 
 ## Getting Started
+
 To get started, you must first install VS Code and have the Lilygo ESP32 T-SIM7000G. You can download VS Code from this website: https://code.visualstudio.com/download 
 
 And you can buy the ESP32 from this link: https://lilygo.cc/products/t-sim7000g?srsltid=AfmBOorPlYeN0B0XtBGR9IOZxBNaTgh5x8RhMpcV2bvTMS_T_vZF39H0
+***
 
 ## Installation
 You'll need two things to download this code, VS Code and PlatformIO. Platform IO is an add-on for VS Code, and it allows the project to utilize arduino libraries to easily interface sensors to our ESP32. 
@@ -48,11 +55,12 @@ You'll need two things to download this code, VS Code and PlatformIO. Platform I
 1. VS Code Download Link: https://code.visualstudio.com/download
 
 2. Download PlatformIO in VS Code:
-![alt text](image-1.png)
+![alt text](platformInstall.png)
 
 3. Clone the GitHub Repo and upload to your ESP32.
     - Must be using the exact same ESP32 to run correctly
 
+***
 ## Usage
 1. **Build and Review the Code:**
     - Build the code to ensure that all libraries are operating correctly and there are no errors. If there are errors, with libraries not being found from ESP-IDF, make sure to include the directory of it from your platformIO installation folder.
@@ -95,8 +103,18 @@ You'll need two things to download this code, VS Code and PlatformIO. Platform I
     - If the device is not working as expected, check the serial monitor in VS Code for any error messages.
     - Ensure all sensors are properly connected and functioning.
 
-## Important to Know
+***
+## Issues that are Important to Know
+Much of this code is buggy, or has been written without the intention of optimizing to its full capacity. 
 
+Known issues:
+ - **ESP-IDF Library Package Errors:** ESP-IDF Library package directories may not be declared in the `C/C++ edit configurations` settings in VS Code. If you run the code and get an error about a `esp-___.h folder undefined`, you may need to find it in the PlatformIO directories and add it to the configurations.
+  - **I2C Addresses and Helper Functions:** If you make the kit from scratch and if you purchase different peripherals, you may need to change the I2C addresses and alter the helper libraries to include your new peripheral. All I2C address can be found in their helper .h file, with the exception of Atlas Scientific sensors. Atlas sensors have a helper function which automatically sets up their interface to I2C.
+  - **Cellular Server Certificates:** There is a way to upload certificates to the ESP32 T-SIM7000G, however the certificates must be refreshed every 3 months. Additionally, it requires you to plug the ESP32 into a battery, then connect it to your PC to access the SIM7000G file system. You may need to update the firmware as well. More information can be found in the following link: https://github.com/botletics/SIM7000-LTE-Shield/wiki/Updating-Firmware
+  - **Adafruit I2C ADC:** If you are attempting to use this ADC, keep in mind that the size of the ADC includes the negative voltage as well. So if you are attmpting to measure just positive voltage, please use half of the total 12 bit decimal value (4096/2 = 2048)
+  - **Unavailable Pins:** Please take a look at the Lilygo ESP32 T-SIM7000G pinout and see which pins are being used by the SD Card and SIM module. None of these pins will be available to use as they will break your code.
+
+***
 ## Contributions
 The following names are the participants of this project while during Senior Design 2024 and after.
 
@@ -107,28 +125,32 @@ The following names are the participants of this project while during Senior Des
 - **Senior Design 2024 Team Participants**
     - **Lead Electrical and Embedded Engineer:** Nathan Chung
     - **Embedded Engineer:** Dianelys Rocha Jimenez
-    - **RF Engineer:** Anthony Perez-Pinon
+    - **RF and Electronics Engineer:** Anthony Perez-Pinon
     - **Power and Electronics Engineer:** Austin Miranda
-    - **Software Engineer:** Lisette Hawkins
+    - **Software and Computer Engineer:** Lisette Hawkins
     <br>
 - **NSF Funded Research Participants**
     - **Lead Electrical and Embedded Engineer:** Nathan Chung
     - **Lead Software and Database Engineer:** Ivan Mico
 
 
-## Senior Design Progress
 ***
+## Senior Design 2024 Progress
 For Senior Design 1 the idea and proof of concept is that we will make use of FIU's network alongside Google's API for transmitting data from sensors to a web application.
 
 During Senior Design 2 we will change the system to use either Bluetooth, or LoRa or similar communication that do not depend on internet Access.
 In this scenario the idea is user connects to system using bluetooth, receives the data and send it to have global access.
 
 Afterwards, the project was handed in to the RDF lab alongside the Institute of Environment and School of Architecture at Florida International University. The scope of the project remains the same, however, the plans are make it more optimized and easier to use for the everyday person. Meaning maintenance must be easily done, and everything must be totally modular. Testing is required before this device is operational.
+***
 
 ## Current Development
-***
-Currently, we are in the process of implementing wireless communication through SIM and 4G/LTE with the Liligo T-sim7000G. We are currently in the works of hosting our own database and web server to remain totally local as according to the rules of FIU. Development in currently focused on cellular connectivity development, however that also includes recoding everything that required WiFi (time of day, https posts, responses, certificates, ect.). Additionally, external peripherals running off I2C were also added for the reduction of wires connected to the ESP32 (I2C 12-bit ADC and IO Extender MCP23017). Once this dev branch is stable and in working order, the branch will be squashed and merged with the main branch. これのために私たちは頑張ります！
+Currently, we are in the process of implementing wireless communication through SIM and 4G/LTE with the Liligo T-sim7000G. We are currently in the works of hosting our own database and web server to remain totally local as according to the rules of FIU. Development in currently focused on cellular connectivity development, however that also includes recoding everything that required WiFi (time of day, https posts, responses, certificates, ect.). Additionally, external peripherals running off I2C were also added for the reduction of wires connected to the ESP32 (I2C 12-bit ADC and IO Extender MCP23017). Once this dev branch is stable and in working order, the branch will be squashed and merged with the main branch.
 
 ```c++
 std::cout<< "put the fries in the bag" << std::endl;
 ```
+
+***
+## Acknowledgments
+FIU has the rights to this project through NSF's EPA grant.
