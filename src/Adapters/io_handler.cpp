@@ -43,72 +43,68 @@ void readSensorData(SensorData &data)
 {
 
     Serial.println("Reading sensor data...");
-    // pinMode(40,OUTPUT);
-    // digitalWrite(40,HIGH);
-    byte error, address;
-    int nDevices;
-    Serial.println("Scanning...");
-    nDevices = 0;
-    for(address = 0; address < 127; address++ ) {
-        Wire.beginTransmission(address);
-        error = Wire.endTransmission();
-        if (error == 0) {
-        Serial.print("I2C device found at address 0x");
-        if (address<16) {
-            Serial.print("0");
-        }
-        Serial.println(address,HEX);
-        nDevices++;
-        }
-        else if (error==4) {
-        Serial.print("Unknow error at address 0x");
-        if (address<16) {
-            Serial.print("0");
-        }
-        Serial.println(address,HEX);
-        }    
-    }
-    if (nDevices == 0) {
-        Serial.println("No I2C devices found\n");
-    }
-    else {
-        Serial.println("done\n");
-    }
 
-    delay(5000);
+    #ifdef I2C_DEBUG
+        byte error, address;
+        int nDevices;
+        Serial.println("Scanning...");
+        nDevices = 0;
+        for(address = 0; address < 127; address++ ) {
+            Wire.beginTransmission(address);
+            error = Wire.endTransmission();
+            if (error == 0) {
+            Serial.print("I2C device found at address 0x");
+            if (address<16) {
+                Serial.print("0");
+            }
+            Serial.println(address,HEX);
+            nDevices++;
+            }
+            else if (error==4) {
+            Serial.print("Unknow error at address 0x");
+            if (address<16) {
+                Serial.print("0");
+            }
+            Serial.println(address,HEX);
+            }    
+        }
+        if (nDevices == 0) {
+            Serial.println("No I2C devices found\n");
+        }
+        else {
+            Serial.println("done\n");
+        }
 
-
-    Serial.println("Turb");
-    data.turbidityValid = tbdty.readTurbidity(&data.turbidity);
-    Serial.println("PH");
-    data.pHValid = phGloabl.readpH(&data.pH);
-    Serial.println("DO");
-    data.oxygenLevelValid = DO.readDO(&data.oxygenLevel, data.salinity, data.temperature);
-    Serial.println("SAL");
-    data.ecValid = sal.readEC(&data.ec);
-    data.tdsValid = sal.readTDS(&data.tds);
-    data.salinityValid = sal.readSalinity(&data.salinity);
+        delay(5000);
+    #endif
 
     Serial.println("TEMP&HUM");
     data.temperatureValid = temp.readTemperature(FAHRENHEIT, &data.temperature);
     data.humidityValid = temp.readHumidity(&data.humidity);
 
-    i2cadc.setGain(GAIN_TWOTHIRDS);
-    int16_t batt = i2cadc.readADC(3);
-    float battVolt = batt * (6.144/4096);
-    Serial.print("Battery: ");
-    Serial.println(batt);
+    Serial.println("Turb");
+    data.turbidityValid = tbdty.readTurbidity(&data.turbidity);
 
-  
+    Serial.println("PH");
+    data.pHValid = phGloabl.readpH(&data.pH);
+
+    Serial.println("SAL");
+    data.ecValid = sal.readEC(&data.ec);
+    data.tdsValid = sal.readTDS(&data.tds);
+    data.salinityValid = sal.readSalinity(&data.salinity);
+
+    //Temp and salinity must be run in order to get proper reading for DO
+    Serial.println("DO");
+    data.oxygenLevelValid = DO.readDO(&data.oxygenLevel, data.salinity, data.temperature);
 
     // Round readings
     data.temperature = round(data.temperature * 1000.0) / 1000.0;
-    data.turbidity = round(data.turbidity * 1000.0) / 1000.0;   //MUST BE BEFORE PH
+    data.turbidity = round(data.turbidity * 1000.0) / 1000.0;  
     data.pH = round(data.pH * 1000.0) / 1000.0;
-    data.oxygenLevel = round(data.oxygenLevel * 1000.0) / 1000.0;   //MUST BE BEFORE EC
+    data.oxygenLevel = round(data.oxygenLevel * 1000.0) / 1000.0;   
     data.tds = round(data.tds * 1000.0) / 1000.0;
     data.ec = round(data.ec*1000.0) / 1000.0;
-    data.salinity = round(data.salinity * 1000.0) / 1000.0;     //MUST BE LAST
+    data.salinity = round(data.salinity * 1000.0) / 1000.0;     
     data.humidity = round(data.humidity * 1000.0) / 1000.0;
 
     Serial.println("Sensor readings complete.");
@@ -131,9 +127,9 @@ bool uploadData(String jsonData) {
         ResponseCode = http.POST(jsonData);
         http.end();
         #else
-            if(!sim.isConnected())  {
+            if(!sim.isConnected())  {   //checks if sim connected to network, and tries to connnect if not
                 Serial.println("Not connected to cellular network. Data not uploaded.");
-                if(sim.isGprsConnected())   {
+                if(sim.isGprsConnected())   {   //if still not connected, will skip 
                     Serial.println("Will attempt to upload in next loop.");
                 }else   {
                     Serial.println("Still not connected to gprs, will skip and try to connect next cycle.");
@@ -141,42 +137,33 @@ bool uploadData(String jsonData) {
                 }
                 // xSemaphoreGive(simCardMutex);
             }else   {
-                if(sim.connected == false)  {
+                if(sim.connected == false)  {   //if not connected to domain, attmpt to connect to domain
                     if(!sim.serverConnect(server, resource))    {
                         Serial.println("Server could not connect");
                         sim.connected=false;
                         // xSemaphoreGive(simCardMutex);
                         return false;
                     }
-                    else{
+                    else{ 
                         sim.connected = true;
-                        sim.setJsonHeader();
+                        sim.setJsonHeader();        //set headers
                         Serial.println("Server Connected!");
                     }
                // }else   {
                     Serial.println("Is server connected?");
-                    if(!sim.IsServerConnected())    {
+                    if(!sim.IsServerConnected())    {   //verifies if domain connected
                         Serial.println("Server is not connected... Attmpting to connect on next cycle.");
                         // xSemaphoreGive(simCardMutex);
                         return false;
                     }else   {
                         Serial.println("attempting to send data");
-                        sim.sendPostRequest(jsonData);
+                        sim.sendPostRequest(jsonData);      //attmpts to send json
                         Serial.println("Sent data successfully!");
                     }
                 }
             }
         #endif
-    //     xSemaphoreGive(simCardMutex);
-    // }
-    
-    // if (httpResponseCode > 0) {
-    //     String response = http.getString();
-    //     Serial.println("HTTP Response code: " + String(httpResponseCode));
-    //     Serial.println(response);
-    // } else {
-    //     Serial.println("HTTP POST request failed.");
-    // }
+
     return (responseCode == 200 || responseCode == 201);
 } 
 
@@ -207,7 +194,7 @@ void printDataOnCLI(const SensorData& data){
     Serial.println(toPrint);
 }
 
-void validateSensorReadings(SensorData& data) {
+void validateSensorReadings(SensorData& data) {     //validates sensor readings
     data.humidityValid = !isnan(data.humidity) && data.humidity >= 0 && data.humidity <= 100;
     data.temperatureValid = !isnan(data.temperature) && data.temperature >= -40 && data.temperature <= 85;
     data.turbidityValid = !isnan(data.turbidity) && data.turbidity >= 0;
@@ -218,63 +205,63 @@ void validateSensorReadings(SensorData& data) {
     data.oxygenLevelValid = !isnan(data.oxygenLevel) && data.oxygenLevel >= 0;
 }
 
-String prepareJsonPayload(const SensorData& data) {
-    const tm& timeinfo = get_current_time();
+String prepareJsonPayload(const SensorData& data) {     
+    const tm& timeinfo = get_current_time();    //gets current time
     StaticJsonDocument<1024> doc;
 
     //Creates readInfo array
-    JsonArray jsArr = doc.createNestedArray("readInfo");
+    JsonArray jsArr = doc.createNestedArray("readInfo");        //creates huge array called readInfo
 
     //creates humidity sensor object
-    JsonObject humDoc = jsArr.createNestedObject();
-    humDoc["id"] = "pending";
+    JsonObject humDoc = jsArr.createNestedObject();     //stores object in array for humidity
+    humDoc["id"] = "";
     humDoc["type"] = "float";
     humDoc["value"] = String(data.humidity,3);
 
     //creates a temperature sensor object
-    JsonObject tempDoc = jsArr.createNestedObject();
+    JsonObject tempDoc = jsArr.createNestedObject();    //object for temp
     tempDoc["id"] = "pending";
     tempDoc["type"] = "float";
     tempDoc["value"] = String(data.temperature,3);
 
     //creates a turbidity sensor object
-    JsonObject turbDoc = jsArr.createNestedObject();
+    JsonObject turbDoc = jsArr.createNestedObject();   //object for turbidity
     turbDoc["id"] = "pending";
     turbDoc["type"] = "float";
     turbDoc["value"] = String(data.turbidity, 3);
 
     //creates a salinity sensor object
-    JsonObject salDoc = jsArr.createNestedObject();
+    JsonObject salDoc = jsArr.createNestedObject();     //object for salinity
     salDoc["id"] = "pending";
     salDoc["type"] = "float";
     salDoc["value"] = String(data.salinity,3);
 
     //creates a conductivity sensor object
-    JsonObject ecDoc = jsArr.createNestedObject();
+    JsonObject ecDoc = jsArr.createNestedObject();      //object for EC
     ecDoc["id"] = "pending";
     ecDoc["type"] = "float";
     ecDoc["value"] = String(data.ec,3);
 
     //creates a tds object
-    JsonObject tdsDoc = jsArr.createNestedObject();
+    JsonObject tdsDoc = jsArr.createNestedObject();     //object for TDS
     tdsDoc["id"] = "pending";
     tdsDoc["type"] = "float";
     tdsDoc["value"] = String(data.tds,3);
 
     //creates a ph object
-    JsonObject phDoc = jsArr.createNestedObject();
+    JsonObject phDoc = jsArr.createNestedObject();      //object for pH
     phDoc["id"] = "pending";
     phDoc["type"] = "float";
     phDoc["value"] = String(data.pH, 3);
 
     //creates a dissolved oxygen object
-    JsonObject doDoc = jsArr.createNestedObject();
+    JsonObject doDoc = jsArr.createNestedObject();      //object for DO
     doDoc["id"] = "pending";
     doDoc["type"] = "float";
     doDoc["value"] = String(data.oxygenLevel, 3);
 
     // Add date object
-    JsonObject dateObj = doc.createNestedObject("date");
+    JsonObject dateObj = doc.createNestedObject("date");    //object for date
     dateObj["year"] = String(timeinfo.tm_year);
     dateObj["month"] = String(timeinfo.tm_mon + 1);
     dateObj["day"] = String(timeinfo.tm_mday);
@@ -283,18 +270,16 @@ String prepareJsonPayload(const SensorData& data) {
     dateObj["second"] = String(timeinfo.tm_sec);
 
     // Add arrayInfo object
-    JsonObject arrayInfo = doc.createNestedObject("arrayInfo");
+    JsonObject arrayInfo = doc.createNestedObject("arrayInfo");     //object for sensor array ID
     arrayInfo["id"] = "1";
     arrayInfo["passphrase"] = "randomText";
-
 
     String jsonPayload;
     serializeJson(doc, jsonPayload);
 
-    /* FOR CELLULAR AT COMMANDS*/
     return jsonPayload;
 
-    
+    /* FOR CELLULAR AT COMMANDS*/
     // doc[KEY_HUMIDITY] = String(data.humidity, 3);
     // doc[KEY_TEMPERATURE] = String(data.temperature, 3);
     // doc[KEY_TURBIDITY] = String(data.turbidity, 3);
@@ -430,42 +415,20 @@ bool saveJsonData(fs::FS &fs, const String &data) {
 }
 
 String readDataFromSD(fs::FS &fs, const char* fileName) {
-    if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
-        File file = fs.open(fileName, FILE_READ);
+    if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {     //takes semaphore so no other function can use SD card
+        File file = fs.open(fileName, FILE_READ);       //opens file
         if (!file) {
             Serial.println("Failed to open file for reading");
             xSemaphoreGive(sdCardMutex);
             return String();
         }
 
-        String data = file.readStringUntil('\n');
+        String data = file.readStringUntil('\n');   //reads data
         file.close();
         xSemaphoreGive(sdCardMutex);
-        xSemaphoreGive(simCardMutex);
-        return data;
+        return data;    //returns dataa
     } else {
         Serial.println("Failed to obtain SD Card mutex for reading.");
         return String();
     }
 }
-
-
-// String readDataFromSD(fs::FS &fs, const char* fileName) {
-//     if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
-//         File file = fs.open(fileName, FILE_READ);
-//         if (!file) {
-//             Serial.println("Failed to open file for reading");
-//             xSemaphoreGive(sdCardMutex);
-//             return String();
-//         }
-
-//         String data = file.readStringUntil('\n');
-//         file.close();
-//         xSemaphoreGive(sdCardMutex);
-//         return data;
-//     } else {
-//         Serial.println("Failed to obtain SD Card mutex for reading.");
-//         return String();
-//     }
-// }
-

@@ -6,27 +6,23 @@ TempSensor& temp = TempSensor::Get();
  * Initializing the sensors instances for temperature and humidity
 **/
 TempSensor::TempSensor():
-    
+
     dht(DHTPIN,DHTTYPE),
     oneWire(ONE_WIRE_BUS),
     sensors(&oneWire)
-
     {}
     
-
 TempSensor& TempSensor::Get(){
     static TempSensor instance;
     return instance;
 }
 
 void TempSensor::begin(){
-    
     dht.begin();
     sensors.begin();
 }
 
 bool TempSensor::readTemp(TEMP tempScale, float* temperature)   {
-
     return true;
 }
 

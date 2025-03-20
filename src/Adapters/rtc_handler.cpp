@@ -18,7 +18,7 @@ const char* TIME_ZONE = "CET-1CEST,M3.5.0,M10.5.0/3";
 bool time_synced = false;
 
 void rtc_begin() {
-    sntp_set_time_sync_notification_cb(on_time_sync);
+    sntp_set_time_sync_notification_cb(on_time_sync);      
     configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER_1, NTP_SERVER_2);
 
     setenv("TZ", "America/New_York", 1);  // Replace with your timezone
@@ -33,7 +33,7 @@ struct tm get_current_time() {
     String msg;
     struct tm timeinfo;
     
-    if (!getLocalTime(&timeinfo)) {
+    if (!getLocalTime(&timeinfo)) {                 //gets local time
         msg =  RTC_TAG + " Failed to obtain time";
         Serial.println(msg);
         time_synced = false;
@@ -44,23 +44,23 @@ struct tm get_current_time() {
 }
 
 bool getCurrentTime(tm timeinfo) {        //Cellular
-    if(is_time_synced())   {
+    if(is_time_synced())   {            //if time is already synced, just grab local time.
         getLocalTime(&timeinfo, 500);
     }else{
-        if(!sim.isGprsConnected())  {
+        if(!sim.isGprsConnected())  {       //end if not connected to internet.
             time_synced = false;
             return false;
         }
-        std::string clk = sim.sendData("AT+CCLK?");
+        std::string clk = sim.sendData("AT+CCLK?"); //get time of day and put it in clk string.
         
-        // Extract the quoted time string
+        // Parse and extract the quoted time string
         int start = clk.find('"');  // First double quote
         int end = clk.find_last_of('"');  // Last double quote
         if (start == std::string::npos || end == std::string::npos) {
             Serial.println("Error: Could not find time string in response!");
-            //return timeinfo; // Return empty struct
+            // return timeinfo; // Return empty struct
             time_synced = false;
-            return false;
+            return false;   //couldnt parse, return false
         }
         clk = clk.substr(start + 1, end - start - 1);  // Extract time string
 
@@ -68,21 +68,21 @@ bool getCurrentTime(tm timeinfo) {        //Cellular
         char delimiter = '/';
         int year = 2000 + std::stoi(clk.substr(0, clk.find(delimiter)));  // Convert year properly
         clk.erase(0, clk.find(delimiter) + 1);
-        int month = std::stoi(clk.substr(0, clk.find(delimiter)));
+        int month = std::stoi(clk.substr(0, clk.find(delimiter)));  //Convert month
         clk.erase(0, clk.find(delimiter) + 1);
         
         delimiter = ',';
-        int day = std::stoi(clk.substr(0, clk.find(delimiter)));
+        int day = std::stoi(clk.substr(0, clk.find(delimiter)));    // convert day
         clk.erase(0, clk.find(delimiter) + 1);
         
         delimiter = ':';
-        int hour = std::stoi(clk.substr(0, clk.find(delimiter)));
+        int hour = std::stoi(clk.substr(0, clk.find(delimiter)));       //convert hour
         clk.erase(0, clk.find(delimiter) + 1);
-        int minute = std::stoi(clk.substr(0, clk.find(delimiter)));
+        int minute = std::stoi(clk.substr(0, clk.find(delimiter)));     //convert minute
         clk.erase(0, clk.find(delimiter) + 1);
 
         delimiter = '-';
-        int second = std::stoi(clk.substr(0, clk.find(delimiter)));
+        int second = std::stoi(clk.substr(0, clk.find(delimiter)));     //convert second
         
         // Populate struct tm
         timeinfo.tm_year = year - 1900;  // Years since 1900
@@ -94,7 +94,7 @@ bool getCurrentTime(tm timeinfo) {        //Cellular
 
         Serial.printf("Parsed Time: %04d/%02d/%02d %02d:%02d:%02d\n", 
                     year, month, day, hour, minute, second);
-        updateSystemTime(timeinfo);
+        updateSystemTime(timeinfo);     //update local time with new parsed time
         if(year < 2000) {
             time_synced = false;
         }else{
@@ -104,7 +104,7 @@ bool getCurrentTime(tm timeinfo) {        //Cellular
     }
 }
 
-void on_time_sync(struct timeval *t) {
+void on_time_sync(struct timeval *t) {     
     String msg = RTC_TAG + "Time synchronized";
     Serial.println(msg);
     printLocalTime();
@@ -144,7 +144,7 @@ uint8_t printLocalTime() {
     //updateSystemTime(timeinfo);
 
     char timeStr[80]; // Ensure the buffer is large enough to hold the resulting string
-    strftime(timeStr, sizeof(timeStr), "%A, %B %d, %Y %H:%M:%S", &timeinfo);
+    strftime(timeStr, sizeof(timeStr), "%A, %B %d, %Y %H:%M:%S", &timeinfo);        //makes time of day string
     msg =  RTC_TAG + String(timeStr);
     Serial.println(msg);
     Serial.println(&timeinfo, "%A, %B %d, %Y %H:%M:%S");
@@ -154,13 +154,15 @@ uint8_t printLocalTime() {
 void updateSystemTime(tm newTime) {
     String msg;
     
-    printTime(&newTime);
+    printTime(&newTime);    //either prints local time or prints the time is not set
+    
     // Convert tm struct to time_t
     time_t t = mktime(&newTime);
     if (t == -1) {
         Serial.println("Error: Failed to convert struct tm to time_t!");
         return;
     }
+
     // Set system time
     struct timeval tv;
     if (t > 2082758399){
@@ -170,18 +172,16 @@ void updateSystemTime(tm newTime) {
         overflow = false;
         tv.tv_sec = t;  // epoch time (seconds)
     }
-    //tv.tv_usec = 0;    // microseconds
+    tv.tv_usec = 0;  // Microseconds
 
     if(settimeofday(&tv,NULL) != 0 ) {
         Serial.println("Error: Failed to set system time!");
     }
-    //configTime(0, 0, "");  // Clear NTP sync
 
     // Update the system time with new time
-
-    // Logging for debugging
     msg = RTC_TAG + "System time updated successfully.";
     Serial.println(msg);
+    
     // For further verification, you might want to print the new time
     struct tm verifiedTime = get_current_time();
     if (getLocalTime(&verifiedTime)) {  // Ensure it gets the correct time

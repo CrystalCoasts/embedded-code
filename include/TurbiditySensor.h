@@ -22,7 +22,7 @@ public:
     void wakeup();
 
 private:
-    static constexpr float VREF = 4.095;
+    static constexpr float VREF = 6.144;
     static constexpr short MAX_NTU = 4550;
     static constexpr short ADC_DIGITAL = 4095;
     //vout = vin*(R2/(R1+R2)) -> vin20/(10+20) -> vin = vou*(3/2)
@@ -31,6 +31,7 @@ private:
     unsigned int cumulativeRead = 0;
     float vClear = 2.82; // Default calibration value
 
+    //making it singleton
     TurbiditySensor();  // Private constructor
     TurbiditySensor(const TurbiditySensor&) = delete; // Prevent copying
     TurbiditySensor& operator=(const TurbiditySensor&) = delete;

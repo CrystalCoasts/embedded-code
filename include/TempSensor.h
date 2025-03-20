@@ -14,6 +14,7 @@ enum TEMP {CELSIUS,FAHRENHEIT};
 class TempSensor
 {
 public:
+    //Initializing pins and modes
     static constexpr uint8_t ONE_WIRE_BUS = 33;
     static constexpr uint8_t DHTPIN = 32;
     static constexpr uint8_t DHTTYPE = DHT22;
@@ -30,17 +31,17 @@ public:
 
 
 private:
-    TempSensor();
     DHT dht;
     OneWire oneWire;
     DallasTemperature sensors;    
 
-    //making it signletton
-    TempSensor (const TempSensor&) = delete;
+    //making it singleton
+    TempSensor();   //private constructor
+    TempSensor (const TempSensor&) = delete;    //prevent copying
     TempSensor& operator=(const TempSensor&)=delete; 
 
 };
 
-extern TempSensor& temp;
+extern TempSensor& temp;        // Declaration of the global singleton instance
 
 #endif

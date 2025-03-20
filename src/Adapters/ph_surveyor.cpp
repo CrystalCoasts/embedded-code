@@ -10,6 +10,8 @@ more data pins such as cameras.
 The original code has not been deleted, however I have commented out the ADC reading functions that correlate to
 currently unsupported IO.
 
+-Nathan Chung, 3/11/2025
+
 */
 
 
@@ -63,7 +65,9 @@ float Surveyor_pH::read_voltage() {
     //voltage_mV += adc1_get_raw(CHANNEL) / 4095.0 * 3300.0 +130;
 
     //I2C adc code
-    voltage_mV += (i2cadc.readADC(this->pin) / 2048) * 4096.0;    //READING from I2C ADC
+    voltage_mV += (i2cadc.readADC(this->pin) / 2048) * 4096.0;    //READING from I2C ADC, uses 2048 bits from (0->4.096V)
+    //voltage_mV += (i2cadc.readADC(this->pin) / 4096) * 4096.0;    //READING from I2C ADC
+
 	#else
 		//voltage_mV += adc1_get_raw(CHANNEL) / 1024.0 * 5000.0;
     voltage_mV += analogRead(this->pin) / 1024.0 * 5000.0;

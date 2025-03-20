@@ -10,6 +10,7 @@ Repo for ESP32 Smart Sea Wall Development code.
 - [Installation](#installation)
 - [Usage](#usage)
 - [Issues that are Important to Know](#issues-that-are-important-to-know)
+- [Next Steps](#next-steps)
 - [Contribution](#contribution)
 - [Senior Design 2024 Progress](#senior-design-2024-progress)
 - [Current Development](#current-development)
@@ -115,6 +116,18 @@ Known issues:
   - **Unavailable Pins:** Please take a look at the Lilygo ESP32 T-SIM7000G pinout and see which pins are being used by the SD Card and SIM module. None of these pins will be available to use as they will break your code.
 
 ***
+## Next Steps:
+ - Attach and program a camera to take a photo whenever the       device turns on. **(OV5640 Camera)**
+ - Redesign PCB board with embedding everying in mind 
+    - All Atlas Scientific sensor circuits can seperate their SMA connection with their circuit to remove excess room taken up by the sensors. **(Requires RF circuit and PCB design experience)**
+        - Proposed Schematic: (You may connect as many I2C devices as you would like)
+        ![alt text](image.png)
+    - Swap current temperature sensor with Atlas Scientific temperature sensor
+    - Embed a 3.3V to 5V boost converter without having to purchase products.
+ - Reduce power consumption **(e.g. optimzing sensor power, cellular power, and time of sensor readings)**.
+ - Optimize solar power charging
+
+***
 ## Contributions
 The following names are the participants of this project while during Senior Design 2024 and after.
 
@@ -135,7 +148,7 @@ The following names are the participants of this project while during Senior Des
 
 
 ***
-## Senior Design 2024 Progress
+## Senior Design 2024 Progress Report
 For Senior Design 1 the idea and proof of concept is that we will make use of FIU's network alongside Google's API for transmitting data from sensors to a web application.
 
 During Senior Design 2 we will change the system to use either Bluetooth, or LoRa or similar communication that do not depend on internet Access.
@@ -145,11 +158,7 @@ Afterwards, the project was handed in to the RDF lab alongside the Institute of 
 ***
 
 ## Current Development
-Currently, we are in the process of implementing wireless communication through SIM and 4G/LTE with the Liligo T-sim7000G. We are currently in the works of hosting our own database and web server to remain totally local as according to the rules of FIU. Development in currently focused on cellular connectivity development, however that also includes recoding everything that required WiFi (time of day, https posts, responses, certificates, ect.). Additionally, external peripherals running off I2C were also added for the reduction of wires connected to the ESP32 (I2C 12-bit ADC and IO Extender MCP23017). Once this dev branch is stable and in working order, the branch will be squashed and merged with the main branch.
-
-```c++
-std::cout<< "put the fries in the bag" << std::endl;
-```
+Currently, we are in the process of implementing wireless communication through SIM and 4G/LTE with the Liligo T-sim7000G. We are currently in the works of hosting our own database and web server to remain totally local as according to the rules of FIU. Development in currently focused on cellular connectivity development, however that also includes recoding everything that required WiFi (time of day, https posts, responses, certificates, ect.). Additionally, external peripherals running off I2C were also added for the reduction of wires connected to the ESP32 (I2C 12-bit ADC and IO Extender MCP23017).
 
 ***
 ## Acknowledgments

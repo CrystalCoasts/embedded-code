@@ -13,13 +13,15 @@ class I2Cadc   {
         void setGain(adsGain_t gain);
 
     private:
-        I2Cadc();
-        I2Cadc(const I2Cadc&) = delete;
+
+        //make singleton
+        I2Cadc();   //private constructor
+        I2Cadc(const I2Cadc&) = delete; //prevent cocpying
         I2Cadc& operator=(const I2Cadc&) = delete;
         Adafruit_ADS1015 adc1015;   
 
 };
 
-extern I2Cadc& i2cadc;
+extern I2Cadc& i2cadc;  // Declaration of the global singleton instance
 
 #endif

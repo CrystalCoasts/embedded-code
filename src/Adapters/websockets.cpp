@@ -1,3 +1,8 @@
+/*
+    Currently not using websockets. This library was written with WiFI in mind, while the current code uses Cellular Data.
+*/
+
+
 #include "WebSockets.h"
 #include "io_handler.h"
 #include "globals.h"

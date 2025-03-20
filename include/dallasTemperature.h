@@ -1,3 +1,5 @@
+//Helper function for TempSensor.h
+
 #ifndef dallasTemperature_h
 #define dallasTemperature_h
 

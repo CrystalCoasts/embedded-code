@@ -36,7 +36,7 @@
 #define MAIN_TAG "[MAIN]"
 #define SIM_TAG "[SIM_CARD]"
 
-// FOR TESTING
+// Time units in milliseconds (for tasks)
 #define QUARTER_MINUTE_MS (MINUTE_MS / 4)
 #define HALF_MINUTE_US (MINUTE_US / 2)
 #define QUARTER_MINUTE_US (MINUTE_US / 4)
@@ -77,7 +77,7 @@ unsigned long lastUpdateTime = 0;
 
 // timers
 // volatile uint64_t powerOnTimer = (3600 * 1000) * 2;  // 2 hours
-volatile uint64_t SYSTEM_POWER_ON = 5 * MINUTE_US;
+uint64_t SYSTEM_POWER_ON = 5 * MINUTE_US;
 volatile uint64_t USER_POWER_ON = 5 * HOUR_US;
 
 uint64_t SYSTEM_POWER_OFF = 5 * MINUTE_MS;  
@@ -113,7 +113,7 @@ void stopSensorTask();
 void powerOffSequence();
 
 void setup() {
-    setCpuFrequencyMhz(80);     //Sets cpu frequency to 80 Mhz to save 20% power
+    setCpuFrequencyMhz(80);                             //Sets cpu frequency to 80 Mhz to save 20% power
     Serial.begin(115200);
     //sensors.begin();
 
@@ -161,8 +161,6 @@ void setup() {
     sensorMutex = xSemaphoreCreateMutex();
     simCardMutex = xSemaphoreCreateMutex();
   
-    //other system initializations
-
     // Initialize NVS for battery level
     prefs.begin("battery_storage");
     batteryLevel = prefs.getUInt("batteryLevel", BATTERY_CHARGE); // Default to full charge if not set
@@ -190,33 +188,34 @@ void loop() {
 /* TASKS */
 void sensorTask(void *pvParameters) {
     
-    sensorTaskRunning = true;   // Used to stop task later when sleeping
+    sensorTaskRunning = true;                                           // Used to stop task later when sleeping
     while (sensorTaskRunning) {
             Serial.println("[TASKS] Sensor task running");
-            SensorData data;    //Initializes sensor data structure
-            readSensorData(data);   // Reads data
-            printDataOnCLI(data);   // Prints onto terminal
+            SensorData data;                                            //Initializes sensor data structure
+            readSensorData(data);                                       // Reads data
+            printDataOnCLI(data);                                       // Prints onto terminal
             
             // Data saving to SD
-            Serial.println("Starting CSV task"); 
+            Serial.println("Starting CSV task");                        //saves to csv
             if (!saveCSVData(SD, prepareCSVPayload(data))) {
                 Serial.println("[TASKS] Failed to save CSV data.");
                 cardMount = false;
             }
 
-            Serial.println("Starting JSON task");
+            Serial.println("Starting JSON task");                       //saves to json
             if (!saveJsonData(SD, prepareJsonPayload(data))) {
                 Serial.println("[TASKS] Failed to save JSON data.");
             }
 
             Serial.println("[TASKS] Sensor task sleeping");
-            vTaskDelay(pdMS_TO_TICKS(SENSOR_TASK_TIMER));  // Delay the task for SENSOR_TASK_TIMER seconds
+            vTaskDelay(pdMS_TO_TICKS(SENSOR_TASK_TIMER));               // Delay the task for SENSOR_TASK_TIMER seconds
 
     }
+
     // Clean up or prepare to delete task
     sensorTaskRunning = false;
     vTaskDelay(pdMS_TO_TICKS(10000));
-    vTaskDelete(NULL); // Optionally delete the task explicitly
+    vTaskDelete(NULL);                                                  // Optionally delete the task explicitly
 }
 
 void uploadTask(void *pvParameters) {
@@ -229,28 +228,26 @@ void uploadTask(void *pvParameters) {
                 continue;
             }
         #else
-            // attempts to connect to the cellular network to send data
-            if(!sim.isGprsConnected()){
+            if(!sim.isGprsConnected()){                                  // attempts to connect to the cellular network to send data
                     Serial.println("Cellular not connected.");
                     sim.gprsConnect();
-                    vTaskDelay(pdMS_TO_TICKS(5000)); // Delay before next execution cycle
+                    vTaskDelay(pdMS_TO_TICKS(5000));                     // Delay before next execution cycle
                     continue;
             }
 
         #endif
 
-            // Attempts to open json file
             File root, file;
-            if (!(root = SD.open(JSON_DIR_PATH, FILE_READ))) {
+            if (!(root = SD.open(JSON_DIR_PATH, FILE_READ))) {          // Attempts to open json file
                 Serial.println("Failed to open directory");
-                vTaskDelay(pdMS_TO_TICKS(10000)); // Wait for 10 seconds before retrying
+                vTaskDelay(pdMS_TO_TICKS(10000));                       // Wait for 10 seconds before retrying
                 continue;
             }
 
             String fileName;
             if(xSemaphoreTake(simCardMutex, pdMS_TO_TICKS(5000)) && xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000)))    { 
 
-                while (file = root.openNextFile()) { // Loops while directory is not empty
+                while (file = root.openNextFile()) {                    // Loops while directory is not empty
                     if (file.isDirectory()) {
                         file.close();
                         continue;
@@ -267,9 +264,9 @@ void uploadTask(void *pvParameters) {
                     bool allLinesUploaded = true;
                     String jsonLine;
                     char ch;
-                    while (file.available()) {      // For every line in the json uploads all the data in the file
+                    while (file.available()) {                          // For every line in the json uploads all the data in the file
                         ch = file.read();
-                        if (ch == '\n' || !file.available()) {      // sends data for every json line
+                        if (ch == '\n' || !file.available()) {          // sends data for every json line
                             if (!jsonLine.isEmpty()) {
                                 jsonLine.trim();
                                 if (!uploadData(jsonLine)) {
@@ -279,7 +276,7 @@ void uploadTask(void *pvParameters) {
                                     break;
                                 }
                                 vTaskDelay(pdMS_TO_TICKS(2000));
-                                jsonLine = ""; // Reset the line buffer
+                                jsonLine = "";                          // Reset the line buffer
                             }
                         } else {
                             jsonLine += ch;
@@ -289,7 +286,7 @@ void uploadTask(void *pvParameters) {
                     uploadDataTaskRunning = false;
                     file.close();
 
-                    if (allLinesUploaded) { //if all lines in the file were upload, removes file from SD
+                    if (allLinesUploaded) {                             //if all lines in the file were upload, removes file from SD
                         SD.remove(String(JSON_DIR_PATH) + "/" + String(fileName)); // Ensure the path is correct
                         Serial.println(String(fileName) + " uploaded and deleted successfully.");
                         sim.connected = false;
@@ -303,7 +300,7 @@ void uploadTask(void *pvParameters) {
                 Serial.println("Couldnt get SD and Sim mutex");
             }
             root.close();
-            vTaskDelay(pdMS_TO_TICKS(10000)); // Delay before next execution cycle
+            vTaskDelay(pdMS_TO_TICKS(10000));                           // Delay before next execution cycle
         }
         
 }
@@ -327,10 +324,10 @@ void shutdownTimerCallback(TimerHandle_t xTimer) {
         //     powerOffSequence();
         // }
     #else
-        if(timeinfo.tm_hour < 6 || timeinfo.tm_hour > 19)      //checks if time if before 6AM or more than 7PM
-            SYSTEM_POWER_ON = 55 * MINUTE_US;      //sets poweroff timer to wak up once an hour
+        if(timeinfo.tm_hour < 6 || timeinfo.tm_hour > 19)       //checks if time if before 6AM or more than 7PM
+            SYSTEM_POWER_ON = 55 * MINUTE_US;                   //sets poweroff timer to wak up once an hour
         else
-            SYSTEM_POWER_ON = 25 * MINUTE_US;      //sets poweroff timer to wake up twice an hour
+            SYSTEM_POWER_ON = 25 * MINUTE_US;                   //sets poweroff timer to wake up twice an hour
 
         Serial.println("Power-off timer expired. Executing power down for" + String((float)(SYSTEM_POWER_OFF/(60000000))));
 
@@ -345,7 +342,7 @@ void powerOffSequence() {
 
     // Load settings, stop tasks, and prepare for shutdown
     for(int i = 0; i <7; i++)   {
-        mcpGlobal.digitalWriteA(i, LOW);    // sets gpio extender IO to low
+        mcpGlobal.digitalWriteA(i, LOW);                        // sets gpio extender IO to low
     }
     prefs.begin("my_timers", false);
     prefs.end();
@@ -405,11 +402,11 @@ void readBatteryTask(void *pvParameters) {
 
     while (true) {
         unsigned long currentTime = millis();
-        unsigned long elapsedTime = currentTime - lastUpdateTime; // Calculate time since last update
+        unsigned long elapsedTime = currentTime - lastUpdateTime;                       // Calculate time since last update
 
         if (elapsedTime >= updateIntervalMs) {
             // Calculate power consumption during active time
-            uint16_t powerConsumed = (BATTERY_DRAW_ACTIVE * elapsedTime / 3600000.0); // Convert ms to hours and calculate
+            uint16_t powerConsumed = (BATTERY_DRAW_ACTIVE * elapsedTime / 3600000.0);   // Convert ms to hours and calculate
             batteryLevel = max(0, batteryLevel - powerConsumed);
 
             prefs.begin("battery_storage", false);

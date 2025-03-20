@@ -1,3 +1,9 @@
+/*
+    New library for I2C IO extender MCP23017. The prewritten one did not work properly, so I created my own functions
+
+    Using the register values and the data sheet, I wrote code to read and write on both A and B bus.
+*/
+
 #ifndef IOEXTENDER_H
 #define IOEXTENDER_H
 
@@ -30,12 +36,14 @@ class MCP   {
     private:
         
         Adafruit_MCP23X17 mcp;
-        MCP();
-        MCP(const MCP&) = delete;
+
+        // make singleton
+        MCP();  //private constructor
+        MCP(const MCP&) = delete;   //prevent copying
         MCP& operator=(const MCP&) = delete;
 
 };
 
-extern MCP& mcpGlobal;
+extern MCP& mcpGlobal;  // Declaration of the global singleton instance
 
 #endif

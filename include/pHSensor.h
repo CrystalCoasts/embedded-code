@@ -33,6 +33,8 @@ private:
     unsigned int cumulativeRead = 0;
 
     Surveyor_pH pH = Surveyor_pH(PIN);
+    
+    //make singleton
     pHSensor();  // Private constructor
     pHSensor(const pHSensor&) = delete; // Prevent copying
     pHSensor& operator=(const pHSensor&) = delete;

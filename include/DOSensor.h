@@ -8,8 +8,6 @@
 #include <Ezo_i2c_util.h>
 #include "ioExtender.h"
 
-#define urmom 0x97
-
 class DOSensor    {
 
     public:
@@ -35,16 +33,18 @@ class DOSensor    {
         char *DO;                        //char pointer used in string parsing.
         char *sat;                       //char pointer used in string parsing.
 
-        static constexpr uint8_t TEMP_COMP = 25;
-        static constexpr uint8_t SAL_COMP = 37;
+        static constexpr uint8_t TEMP_COMP = 25;        //assume 25 degrees celcius for data extraction
+        static constexpr uint8_t SAL_COMP = 37;         //assumed salinity of 37 for data extraction
         String ecName = "DO";
         static constexpr short EC_ADDR = 0x61;
         Ezo_board ec2 = Ezo_board(EC_ADDR, ecName.c_str());
         char ec_data[32];
 
         bool parseValue(const char* rawBuff, char* parsedBuff, const char* key);
-        DOSensor();
-        DOSensor(const DOSensor&) = delete;
+
+        //make singleton
+        DOSensor();     //private constructor
+        DOSensor(const DOSensor&) = delete;     //prevent copying
         DOSensor& operator=(const DOSensor&) = delete;
 
 };

@@ -5,29 +5,27 @@ pHSensor& phGloabl = pHSensor::Get();
 pHSensor::pHSensor() {};
 
 bool pHSensor::begin()  {
-    //pinMode(EN, OUTPUT);
-    //digitalWrite(EN, HIGH);
-    mcpGlobal.pinModeA(EN,0);
-    wakeup();
+    mcpGlobal.pinModeA(EN,0);   //Setup EN pin for output
+    wakeup();       //Turn on pH sensor
     if(pH.begin())  {
         return true;
     }
     return false;
-    sleep();
+    sleep();        //turn off pH sensor
 }
 
 bool pHSensor::readpH(float* pHValue) {
-    wakeup();
-    if(pHValue == nullptr)  {
+    wakeup();       // turn on pH sensor
+    if(pHValue == nullptr)  {       //if pointer is empty, return false
         return false;
     }
 
     
-    float p = pH.read_ph();
+    float p = pH.read_ph();     //read pH
     if(isnan(p))   {
         return false;
     }
-    sleep();
+    sleep();        //turn off pH sensor
     *pHValue = p;
     return pHValue;
 }
@@ -37,16 +35,18 @@ pHSensor& pHSensor::Get()    {
     return instance; 
 }
 
+//Power Consumption Methods
 void pHSensor::wakeup() {
-    mcpGlobal.digitalWriteA(EN,HIGH);
+    mcpGlobal.digitalWriteA(EN,HIGH);       //outputs high value to bjt switch to turn on pH sensor
     //digitalWrite(EN, HIGH);
     delay(200);
 }
 void pHSensor::sleep() {
-    mcpGlobal.digitalWriteA(EN, LOW);
+    mcpGlobal.digitalWriteA(EN, LOW);       //outputs low value to bjt switch to turn off pH sensor
     delay(200);
 }
 
+//Calibration Methods
 void pHSensor::cal_mid()  {
     pH.cal_mid();
 }
