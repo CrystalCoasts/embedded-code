@@ -1,5 +1,13 @@
 # Smart Sea Wall Embedded Code Development
 Repo for ESP32 Smart Sea Wall Development code.  
+
+## Development for camera coding
+To-Do:
+ - Integrate camera
+ - take photo
+ - save photo to sd
+ - send photo wirelessly
+
 ***
 
 ## Table of Contents
@@ -162,4 +170,4 @@ Currently, we are in the process of implementing wireless communication through 
 
 ***
 ## Acknowledgments
-FIU has the rights to this project through NSF's EPA grant.
+FIU has the rights to this project through NSF and EPA grant.
