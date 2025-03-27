@@ -20,7 +20,7 @@
 #include "TurbiditySensor.h"
 #include "SalinitySensor.h"
 #include "pHSensor.h"
-#include "cellular.h"
+#include "Cellular.h"
 #include "ioExtender.h"
 #include "Adafruit_MCP23X17.h"
 
@@ -65,7 +65,7 @@ const char* CSV_DIR_PATH = "/csvFiles";
 // battery values
 const uint16_t BATTERY_CHARGE = 10000; // 10000 mAh
 const uint8_t BATTERY_DRAW_SLEEP = 60; // 60 mA
-const uint8_t BATTERY_DRAW_ACTIVE = 190; // 190 mA
+const uint8_t BATTERY_DRAW_ACTIVE = 220; // 190 mA
 
 bool sdON = false;
 
@@ -77,10 +77,10 @@ unsigned long lastUpdateTime = 0;
 
 // timers
 // volatile uint64_t powerOnTimer = (3600 * 1000) * 2;  // 2 hours
-uint64_t SYSTEM_POWER_ON = 5 * MINUTE_US;
+uint64_t SYSTEM_POWER_ON = 25 * MINUTE_US;   //powers on after 25 minutes
 volatile uint64_t USER_POWER_ON = 5 * HOUR_US;
 
-uint64_t SYSTEM_POWER_OFF = 5 * MINUTE_MS;  
+uint64_t SYSTEM_POWER_OFF = 5 * MINUTE_MS;  // powers off after 5 minutes
 const uint64_t SENSOR_TASK_TIMER =  30000;  //HALF_MINUTE_MS; // 30 seconds, for tasks
 
 //tasks semaphores
