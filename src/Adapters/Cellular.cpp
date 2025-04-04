@@ -8,8 +8,9 @@ const char apn[]  =  "m2mglobal"; //"iot.1nce.net"     //Set your APN depending 
 const char gprsUser[] = "";
 const char gprsPass[] = "";
 
-const char server[]   =  "https://128bdb57-9d10-4eb7-b3db-3aa86f885e1c.mock.pstmn.io";      //Domain where you will be sending/receiving data
-const char resource[] = "/post";                                                            //The path to where you are sending the data
+const char server[]   =  "https://128bdb57-9d10-4eb7-b3db-3aa86f885e1c.mock.pstmn.io[: 443]";//"seawall.fiu.edu[: 443]";      //Domain where you will be sending/receiving data
+// https://128bdb57-9d10-4eb7-b3db-3aa86f885e1c.mock.pstmn.io
+const char resource[] = "/post";//"/sensorReads";                                                            //The path to where you are sending the data
 const int  port       = 443;                                                                //https 443 port, could be port 80 for regular http
 
 TinyGsm modem(mySerial2);
@@ -180,6 +181,7 @@ void Cellular::begin()   {
         Serial.println("Operator: " + cop);
 
         IPAddress local = modem.localIP();              //local IP print
+    
         Serial.println("Local IP: " + String(local));
 
         int csq = modem.getSignalQuality();             // Signal strength (0-31), 99 means unknown or packetloss

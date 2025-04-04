@@ -17,7 +17,7 @@ extern SemaphoreHandle_t simCardMutex;
 const char* DATA_URL = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.com/api/data";
 // const char* DATA_URL = "https://smart-seawall-server-4c5cb6fd8f61.herokuapp.com/api/test-data";
 
-const char server[]   = "https://d17e66a7-c349-4d03-9453-cf90701e7aaa.mock.pstmn.io";
+const char server[]   = "http://d17e66a7-c349-4d03-9453-cf90701e7aaa.mock.pstmn.io:80";
 const char resource[] = "/post";
 const int  port       = 443;
 
