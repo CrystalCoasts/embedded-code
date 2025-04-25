@@ -210,55 +210,56 @@ String prepareJsonPayload(const SensorData& data) {
     StaticJsonDocument<1024> doc;
 
     //Creates readInfo array
+    doc["sensorArrayID"] = "1";    //creates empty array called readInfo
     JsonArray jsArr = doc.createNestedArray("readInfo");        //creates huge array called readInfo
 
     //creates humidity sensor object
     JsonObject humDoc = jsArr.createNestedObject();     //stores object in array for humidity
-    humDoc["id"] = "";
+    humDoc["id"] = "2";
     humDoc["type"] = "float";
-    humDoc["value"] = String(data.humidity,3);
+    humDoc["readVal"] = String(data.humidity,3);
 
     //creates a temperature sensor object
     JsonObject tempDoc = jsArr.createNestedObject();    //object for temp
-    tempDoc["id"] = "pending";
+    tempDoc["id"] = "3";
     tempDoc["type"] = "float";
-    tempDoc["value"] = String(data.temperature,3);
+    tempDoc["readVal"] = String(data.temperature,3);
 
     //creates a turbidity sensor object
     JsonObject turbDoc = jsArr.createNestedObject();   //object for turbidity
-    turbDoc["id"] = "pending";
+    turbDoc["id"] = "4";
     turbDoc["type"] = "float";
-    turbDoc["value"] = String(data.turbidity, 3);
+    turbDoc["readVal"] = String(data.turbidity, 3);
 
     //creates a salinity sensor object
     JsonObject salDoc = jsArr.createNestedObject();     //object for salinity
-    salDoc["id"] = "pending";
+    salDoc["id"] = "5";
     salDoc["type"] = "float";
-    salDoc["value"] = String(data.salinity,3);
+    salDoc["readVal"] = String(data.salinity,3);
 
     //creates a conductivity sensor object
     JsonObject ecDoc = jsArr.createNestedObject();      //object for EC
-    ecDoc["id"] = "pending";
+    ecDoc["id"] = "7";
     ecDoc["type"] = "float";
-    ecDoc["value"] = String(data.ec,3);
+    ecDoc["readVal"] = String(data.ec,3);
 
     //creates a tds object
     JsonObject tdsDoc = jsArr.createNestedObject();     //object for TDS
-    tdsDoc["id"] = "pending";
+    tdsDoc["id"] = "6";
     tdsDoc["type"] = "float";
-    tdsDoc["value"] = String(data.tds,3);
+    tdsDoc["readVal"] = String(data.tds,3);
 
     //creates a ph object
     JsonObject phDoc = jsArr.createNestedObject();      //object for pH
-    phDoc["id"] = "pending";
+    phDoc["id"] = "8";
     phDoc["type"] = "float";
-    phDoc["value"] = String(data.pH, 3);
+    phDoc["readVal"] = String(data.pH, 3);
 
     //creates a dissolved oxygen object
     JsonObject doDoc = jsArr.createNestedObject();      //object for DO
-    doDoc["id"] = "pending";
+    doDoc["id"] = "9";
     doDoc["type"] = "float";
-    doDoc["value"] = String(data.oxygenLevel, 3);
+    doDoc["readVal"] = String(data.oxygenLevel, 3);
 
     // Add date object
     JsonObject dateObj = doc.createNestedObject("date");    //object for date
@@ -272,27 +273,11 @@ String prepareJsonPayload(const SensorData& data) {
     // Add arrayInfo object
     JsonObject arrayInfo = doc.createNestedObject("arrayInfo");     //object for sensor array ID
     arrayInfo["id"] = "1";
-    arrayInfo["passphrase"] = "randomText";
 
     String jsonPayload;
     serializeJson(doc, jsonPayload);
 
     return jsonPayload;
-
-    /* FOR CELLULAR AT COMMANDS*/
-    // doc[KEY_HUMIDITY] = String(data.humidity, 3);
-    // doc[KEY_TEMPERATURE] = String(data.temperature, 3);
-    // doc[KEY_TURBIDITY] = String(data.turbidity, 3);
-    // doc[KEY_SALINITY] = String(data.salinity, 3);
-    // doc[KEY_TDS] = String(data.tds, 3);
-    // doc[KEY_PH] = String(data.pH, 3);
-    // doc[KEY_OXYGEN_LEVEL] = String(data.oxygenLevel, 3);
-    // doc[KEY_MONTH] = String(timeinfo.tm_mon+1);
-    // doc[KEY_DAY] = String(timeinfo.tm_mday);
-    // doc[KEY_YEAR] = String(timeinfo.tm_year);
-    // doc[KEY_HOUR] = String(timeinfo.tm_hour);
-    // doc[KEY_MINUTE] = String(timeinfo.tm_min);
-    // doc[KEY_SECOND] = String(timeinfo.tm_sec);
 }
 
 

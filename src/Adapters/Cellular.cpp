@@ -408,9 +408,9 @@ bool Cellular::serverConnect(const char* server, const char* resource)  {
     sim.sendData("AT+CSSLCFG=\"sslversion\",1,3");      //sets SSL version as 3
     sim.sendData("AT+CSSLCFG=\"sni\",1," + String(server));     //sets up config to connnect to domain
     sim.sendData("AT+SHSSL=1,\"\"");        //sets certificate as automatic
-    sim.sendData("AT+SHCONF=\"BODYLEN\",1000");         //body length 1000 bytes
+    sim.sendData("AT+SHCONF=\"BODYLEN\",1024");         //body length 1000 bytes
     sim.sendData("AT+SHCONF=\"HEADERLEN\",350");        //header length 350 bytes
-    sim.sendData("AT+SHCONF=\"URL\"," + String(server));        //domain config set up
+    sim.sendData("AT+SHCONF=\"URL\",https://" + String(server));        //domain config set up
     if(sendData("AT+SHCONN").find("ERROR") != std::string::npos)  {     //attempts to connect to domain
         Serial.println("Error found! Could not connnect!");
         sim.connected = false;
@@ -432,6 +432,7 @@ bool Cellular::setJsonHeader()  {
         sim.sendData("AT+SHAHEAD=\"Cache-control\", \"no-cache\"");             //no cache
         sim.sendData("AT+SHAHEAD=\"Connection\", \"keep-alive\"");              //doesnt let connection die
         sim.sendData("AT+SHAHEAD=\"Accept\", \"*/*\"");                         //Accept any type of data
+        sim.sendData("AT+SHAHEAD=\"Authorization\", \"Bearer f0fa3eaa-7ffd-43b9-8834-4fdddcd1bc95\"");     //Accept any type of data
         //sim.sendData("AT+SHAHEAD=\"Authoriation\", bearer {token} )
         return true;
     }
