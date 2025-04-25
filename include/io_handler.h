@@ -15,6 +15,8 @@
 // #include <base_surveyor.h>
 #include "DOSensor.h"
 #include "esp_heap_caps.h"
+#include "AtlasTemp.h"
+#include "AtlasPH.h"
 
 #define IO_RXD2 47
 #define IO_TXD2 48

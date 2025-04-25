@@ -1,37 +1,49 @@
 #include "AtlasTemp.h"
 
-AtlasTemp& AtlasTemp::get() {
+AtlasTemp& atlasTempSensor = AtlasTemp::Get(); // Create a global instance of AtlasTemp
+
+AtlasTemp::AtlasTemp() {};
+
+AtlasTemp& AtlasTemp::Get() {
     static AtlasTemp instance; // Guaranteed to be destroyed.
     return instance;           // Instantiated on first use.
 }
 // Constructor is private to prevent instantiation
 
-AtlasTemp::AtlasTemp() {};
-
 void AtlasTemp::begin() {
-    mcpGlobal.pinModeA(EN_O,0);
+    mcpGlobal.pinModeA(EN,0);
     wake();
+    delay(1000);
     int calibrated = 0, tempComp = 0, salComp = 0;
     char parsedData[32];
-    ec.send_cmd("S,c");
+    ezoTemp.send_cmd("S,c");
     delay(300);
     sleep();
 }
 
-bool AtlasTemp::readTemp(float* temp) {
+bool AtlasTemp::readTemperature(float* temp) {
     wake();
-    ec.send_read_cmd();
+    delay(1000);
+    Wire.beginTransmission(0x66);
+    Wire.write("R");
+    Wire.endTransmission();
     delay(600);
-    ec.receive_cmd(ec_data, sizeof(ec_data)); //receive readings and stores in ec_data
-    ec.send_cmd("Sleep");      //Slepe device
+    ezoTemp.receive_cmd(computerdata, sizeof(computerdata)); //receive readings and stores in ec_data
     delay(500);
     sleep();        //turn off device
+
+    if (computerdata[0] != '\0') {
+        *temp = atof(computerdata);        //set DO pointer as data
+        return true;
+    }
+    return false;
+
 }
 
 void AtlasTemp::wake() {
-    mcpGlobal.digitalWriteA(EN_O, HIGH); // Turn on the circuit
+    mcpGlobal.digitalWriteA(EN, HIGH); // Turn on the circuit
 }
 
 void AtlasTemp::sleep() {
-    mcpGlobal.digitalWriteA(EN_O, LOW); // Turn off the circuit
+    mcpGlobal.digitalWriteA(EN, LOW); // Turn off the circuit
 }

@@ -4,10 +4,14 @@
 #include <HTTPClient.h>
 #include <WiFi.h>
 #include "TempSensor.h"
+#include "AtlasPH.h"
+#include "AtlasTemp.h"
 #include "dallasTemperature.h"
 #include <Adafruit_MCP23X17.h>
 #include "globals.h"
 #include "I2Cadc.h"
+
+#define I2C_DEBUG
 
 // extern bool isConnected;
 
@@ -44,7 +48,10 @@ void readSensorData(SensorData &data)
 
     Serial.println("Reading sensor data...");
 
+
     #ifdef I2C_DEBUG
+         mcpGlobal.digitalWriteA(1,HIGH);
+        delay(1000);
         byte error, address;
         int nDevices;
         Serial.println("Scanning...");
@@ -74,19 +81,23 @@ void readSensorData(SensorData &data)
         else {
             Serial.println("done\n");
         }
+        mcpGlobal.digitalWriteA(1,LOW);
 
         delay(5000);
+
     #endif
 
     Serial.println("TEMP&HUM");
-    data.temperatureValid = temp.readTemperature(FAHRENHEIT, &data.temperature);
+    //data.temperatureValid = temp.readTemperature(FAHRENHEIT, &data.temperature);
+    data.temperatureValid = atlasTempSensor.readTemperature(&data.temperature); // Read temperature from AtlasTemp sensor
     data.humidityValid = temp.readHumidity(&data.humidity);
 
     Serial.println("Turb");
     data.turbidityValid = tbdty.readTurbidity(&data.turbidity);
 
     Serial.println("PH");
-    data.pHValid = phGloabl.readpH(&data.pH);
+    data.pHValid = atlasPHSensor.readPH(&data.pH, data.temperature); // Read pH from AtlasPH sensor
+    //data.pHValid = phGloabl.readpH(&data.pH);
 
     Serial.println("SAL");
     data.ecValid = sal.readEC(&data.ec);

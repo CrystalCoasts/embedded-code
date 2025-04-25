@@ -408,7 +408,7 @@ bool Cellular::serverConnect(const char* server, const char* resource)  {
     sim.sendData("AT+SHSSL=1,\"\"");        //sets certificate as automatic
     sim.sendData("AT+SHCONF=\"BODYLEN\",1000");         //body length 1000 bytes
     sim.sendData("AT+SHCONF=\"HEADERLEN\",350");        //header length 350 bytes
-    sim.sendData("AT+SHCONF=\"URL\"," + String(server));        //domain config set up
+    sim.sendData("AT+SHCONF=\"URL\"," + String(server)) + ":" + String(port).c_str();        //domain config set up
     if(sendData("AT+SHCONN").find("ERROR") != std::string::npos)  {     //attempts to connect to domain
         Serial.println("Error found! Could not connnect!");
         sim.connected = false;

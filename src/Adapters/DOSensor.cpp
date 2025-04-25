@@ -1,7 +1,6 @@
 #include "DOSensor.h"
 #include <iostream>
 
-
 DOSensor& DO = DOSensor::get();
 
 DOSensor::DOSensor()    {};
@@ -18,7 +17,7 @@ void DOSensor::begin()
     wake();
     int calibrated = 0, tempComp = 0, salComp = 0;
     char parsedData[32];
-    delay(500);
+    delay(1000);
 
     // if (parseValue(ec_data, parsedData, "?Cal")) {
     //     Serial.println("Calibration profile detected.");
@@ -65,7 +64,7 @@ bool DOSensor::readDO(float* DO, float salinity, float temp) {
     // digitalWrite(EN_O, HIGH);
     // delay(300);
     wake();
-    delay(500);
+    delay(1000);
 
     //must send salinity and temp for proper reading
     String command = "S," + String(salinity) + ",ppt";

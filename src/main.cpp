@@ -16,10 +16,13 @@
 #include "globals.h"
 
 // Sensor headers
+#include "DOSensor.h"
 #include "TempSensor.h"
 #include "TurbiditySensor.h"
 #include "SalinitySensor.h"
-#include "pHSensor.h"
+//#include "pHSensor.h"
+#include "AtlasTemp.h"
+#include "AtlasPH.h"
 #include "Cellular.h"
 #include "ioExtender.h"
 #include "Adafruit_MCP23X17.h"
@@ -113,7 +116,7 @@ void stopSensorTask();
 void powerOffSequence();
 
 void setup() {
-    setCpuFrequencyMhz(80);                             //Sets cpu frequency to 80 Mhz to save 20% power
+    //setCpuFrequencyMhz(80);                             //Sets cpu frequency to 80 Mhz to save 20% power
     Serial.begin(115200);
     //sensors.begin();
 
@@ -152,9 +155,12 @@ void setup() {
     i2cadc.begin();
     temp.begin();
     tbdty.begin();
-    phGloabl.begin();   
+
+    //phGloabl.begin();   
     DO.begin();
     sal.begin(); //also tds & ec
+    atlasPHSensor.begin();
+    atlasTempSensor.begin();
 
     // Create mutexes
     sdCardMutex = xSemaphoreCreateMutex();
