@@ -4,6 +4,7 @@ Repo for ESP32 Smart Sea Wall Development code.
 
 ## Table of Contents
 - [Introduction](#introduction)
+- [Current Development](#current-development)
 - [Contains](#contains)
 - [Features](#features)
 - [Getting Started](#getting-started)
@@ -16,7 +17,16 @@ Repo for ESP32 Smart Sea Wall Development code.
 - [Current Development](#current-development)
 - [Acknowledgments](#acknowledgments)
 ***
-### Introduction
+
+## Current Development
+Currently we are working on the new PCB and getting on the sensors working. Those changes can be found in the "dev/new-pcb" branch on github. This is the most up to date branch and includes the new JSON format with instructions to send HTTPS post requests to the new seawall.fiu.edu database. 
+
+Additionally, I have also been working on camera development, which can be found on the dev/camera branch. This branch contains completed libraries are taking photos. I am only waiting on sending photos through cellular to complete this branch.
+
+Cellular and HTTPS post testing can be found on the examples-repo under the "cellular" branch. There you can set up code in the Cellular.cpp file to test the operation of https post requests. Currently we are working on camera posting development within that branch for easy testing.
+***
+
+## Introduction
 This was originally a Senior Design Project at FIU from 2024, however, it has migrated to a full-fledged project backed by the Institute of Environment and Department of Architecture starting fall of 2024. This project was created a low-cost solution to monitoring the coastal waters in Miami by placing these embedded systems into sea walls. The device will gather salinity, conductivity, dissolved oxygen, pH, temperature, turbidity, and the humidity of the embedded sensors themselves.
 
 The device is utilizing the cellular network to communicate data to a server, which is then displayed on a website for the public to view.
