@@ -9,7 +9,7 @@ const char gprsUser[] = "";
 const char gprsPass[] = "";
 
 const char server[]   = "seawall.fiu.edu";   // do NOT add the https:// as it will break the code
-const char resource[] = "/post";            //The path to where you are sending the data
+const char resource[] = "/sensorReads";            //The path to where you are sending the data
 const int  port       = 443;                //https 443 port, could be port 80 for regular http
 
 TinyGsm modem(mySerial2);
@@ -430,7 +430,7 @@ bool Cellular::setJsonHeader()  {
         sim.sendData("AT+SHAHEAD=\"Cache-control\", \"no-cache\"");             //no cache
         sim.sendData("AT+SHAHEAD=\"Connection\", \"keep-alive\"");              //doesnt let connection die
         sim.sendData("AT+SHAHEAD=\"Accept\", \"*/*\"");                         //Accept any type of data
-        //sim.sendData("AT+SHAHEAD=\"Authoriation\", bearer {token} )
+        sim.sendData("AT+SHAHEAD=\"Authorization\", \"Bearer f0fa3eaa-7ffd-43b9-8834-4fdddcd1bc95\"");     //Accept any type of data
         return true;
     }
     
