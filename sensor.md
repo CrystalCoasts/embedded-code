@@ -4,7 +4,7 @@
 ```sh
 Invoke-WebRequest -Uri "https://seawall.fiu.edu/sensorSpecifications" `
   -Method POST `
-  -Body '{"type":"float", "version":"1", "readValLabel":"humidity"}' `
+  -Body '{"type":"float", "version":"1", "readValLabel":"humidity, "unit":"Percentage", "unitAbbreviation":"%"}' `
   -ContentType "application/json"
 ```
 return newSensorSpecID = 1
@@ -12,7 +12,7 @@ return newSensorSpecID = 1
 ```sh
 Invoke-WebRequest -Uri "https://seawall.fiu.edu/sensorSpecifications" `
   -Method POST `
-  -Body '{"type":"float", "version":"1", "readValLabel":"temperature"}' `
+  -Body '{"type":"float", "version":"1", "readValLabel":"temperature", "unit":"Celsius", "unitAbbreviation":"C"}' `
   -ContentType "application/json"
 ```
 return newSensorSpecID = 2
@@ -20,7 +20,7 @@ return newSensorSpecID = 2
 ```sh
 Invoke-WebRequest -Uri "https://seawall.fiu.edu/sensorSpecifications" `
   -Method POST `
-  -Body '{"type":"float", "version":"1", "readValLabel":"turbidity"}' `
+  -Body '{"type":"float", "version":"1", "readValLabel":"turbidity", "unit":"Nephelometric Turbidity Unit", "unitAbbreviation":"NTU"}' `
   -ContentType "application/json"
 ```
 return newSensorSpecID = 3
@@ -28,7 +28,7 @@ return newSensorSpecID = 3
 ```sh
 Invoke-WebRequest -Uri "https://seawall.fiu.edu/sensorSpecifications" `
   -Method POST `
-  -Body '{"type":"float", "version":"1", "readValLabel":"salinity"}' `
+  -Body '{"type":"float", "version":"1", "readValLabel":"salinity", "unit":"Practical Salinity Unit (Parts per Thousand)", "unitAbbreviation":"PSU (ppt)"}' `
   -ContentType "application/json"
 ```
 return newSensorSpecID = 4
@@ -36,7 +36,7 @@ return newSensorSpecID = 4
 ```sh
 Invoke-WebRequest -Uri "https://seawall.fiu.edu/sensorSpecifications" `
   -Method POST `
-  -Body '{"type":"float", "version":"1", "readValLabel":"total dissolved solids"}' `
+  -Body '{"type":"float", "version":"1", "readValLabel":"total dissolved solids", "unit":"Parts per Million", "unitAbbreviation":"ppm"}' `
   -ContentType "application/json"
 ```
 return newSensorSpecID = 5
@@ -44,7 +44,7 @@ return newSensorSpecID = 5
 ```sh
 Invoke-WebRequest -Uri "https://seawall.fiu.edu/sensorSpecifications" `
   -Method POST `
-  -Body '{"type":"float", "version":"1", "readValLabel":"conductivity"}' `
+  -Body '{"type":"float", "version":"1", "readValLabel":"conductivity", "unit":"Milligrams/Liter", "unitAbbreviation":"mg/L"}' `
   -ContentType "application/json"
 ```
 return newSensorSpecID = 6
@@ -52,7 +52,7 @@ return newSensorSpecID = 6
 ```sh
 Invoke-WebRequest -Uri "https://seawall.fiu.edu/sensorSpecifications" `
   -Method POST `
-  -Body '{"type":"float", "version":"1", "readValLabel":"ph"}' `
+  -Body '{"type":"float", "version":"1", "readValLabel":"ph", "unit":"Potential of Hydrogen", "unitAbbreviation":"pH"}' `
   -ContentType "application/json"
 ```
 return newSensorSpecID = 7
@@ -60,7 +60,7 @@ return newSensorSpecID = 7
 ```sh
     Invoke-WebRequest -Uri "https://seawall.fiu.edu/sensorSpecifications" `
     -Method POST `
-    -Body '{"type":"float", "version":"1", "readValLabel":"dissolved oxygen"}' `
+    -Body '{"type":"float", "version":"1", "readValLabel":"dissolved oxygen", "unit":"Micro Siemens/Liter", "unitAbbreviation":"mS/L"}' `
     -ContentType "application/json"
 ```
 return newSesorSpecID = 8
