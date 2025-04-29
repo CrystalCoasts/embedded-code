@@ -27,7 +27,7 @@ bool AtlasPH::readPH(float* ph, float temp) {
     ezoPH.send_cmd(command.c_str());
     delay(300);
     ezoPH.send_read_cmd();
-    delay(600);
+    delay(900);
     ezoPH.receive_cmd(computerdata, sizeof(computerdata)); //receive readings and stores in ec_data
     ezoPH.send_cmd("Sleep");      //Slepe device
     delay(500);

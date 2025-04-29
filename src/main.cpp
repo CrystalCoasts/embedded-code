@@ -80,10 +80,10 @@ unsigned long lastUpdateTime = 0;
 
 // timers
 // volatile uint64_t powerOnTimer = (3600 * 1000) * 2;  // 2 hours
-uint64_t SYSTEM_POWER_ON = 25 * MINUTE_US;   //powers on after 25 minutes
+uint64_t SYSTEM_POWER_ON = 3 * MINUTE_US;   //powers on after 25 minutes
 volatile uint64_t USER_POWER_ON = 5 * HOUR_US;
 
-uint64_t SYSTEM_POWER_OFF = 5 * MINUTE_MS;  // powers off after 5 minutes
+uint64_t SYSTEM_POWER_OFF = 3 * MINUTE_MS;  // powers off after 5 minutes
 const uint64_t SENSOR_TASK_TIMER =  30000;  //HALF_MINUTE_MS; // 30 seconds, for tasks
 
 //tasks semaphores
@@ -333,9 +333,9 @@ void shutdownTimerCallback(TimerHandle_t xTimer) {
         if(timeinfo.tm_hour < 6 || timeinfo.tm_hour > 19)       //checks if time if before 6AM or more than 7PM
             SYSTEM_POWER_ON = 55 * MINUTE_US;                   //sets poweroff timer to wak up once an hour
         else
-            SYSTEM_POWER_ON = 25 * MINUTE_US;                   //sets poweroff timer to wake up twice an hour
+            SYSTEM_POWER_ON = 3 * MINUTE_US;                   //sets poweroff timer to wake up twice an hour
 
-        Serial.println("Power-off timer expired. Executing power down for" + String((float)(SYSTEM_POWER_OFF/(60000000))));
+        Serial.println("Power-off timer expired. Executing power down for" + String((float)(SYSTEM_POWER_ON/(60000000))));
 
         powerOffSequence();
     #endif
