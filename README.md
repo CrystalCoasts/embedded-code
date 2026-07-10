@@ -64,7 +64,7 @@ You'll need two things to download this code, VS Code and PlatformIO. Platform I
 ***
 ## Usage
 1. **Initial Prep:**
-    - Make sure you got a readkey from the API by registering the sensor array
+    - Make sure you got a readkey from the API by registering the sensor array ALONG WITH the ids and potentially types of each sensor
     - Make .env file and copy contents of .env.example into it, pasting the readkey that you got from the API earlier in place of dummy
     - If on system other than windows, in pio terminal run the command: 
     ```console

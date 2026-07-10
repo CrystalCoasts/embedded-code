@@ -2,7 +2,7 @@
 .pio/
 .pioenvs/
 .piolibdeps/
-.cache
+.cache/
 
 # VSCode specific
 .vscode/
