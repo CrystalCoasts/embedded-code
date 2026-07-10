@@ -7,10 +7,6 @@
 #include <Preferences.h>
 #include <esp_sleep.h>
 
-#include "soc/rtc_cntl_reg.h"
-#include "soc/rtc.h"
-#include "driver/rtc_io.h"
-#include "driver/i2c.h"
 #include <esp_task_wdt.h>
 
 #include "globals.h"
@@ -25,7 +21,6 @@
 #include "AtlasPH.h"
 #include "Cellular.h"
 #include "ioExtender.h"
-#include "Adafruit_MCP23X17.h"
 
 //helpers
 #include "io_handler.h" //this includes SdFat32
@@ -253,7 +248,7 @@ void uploadTask(void *pvParameters) {
             String fileName;
             if(xSemaphoreTake(simCardMutex, pdMS_TO_TICKS(5000)) && xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000)))    { 
 
-                while (file = root.openNextFile()) {                    // Loops while directory is not empty
+                while ((file = root.openNextFile())) {                    // Loops while directory is not empty
                     if (file.isDirectory()) {
                         file.close();
                         continue;

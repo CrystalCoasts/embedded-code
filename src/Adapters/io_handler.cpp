@@ -6,10 +6,8 @@
 #include "TempSensor.h"
 #include "AtlasPH.h"
 #include "AtlasTemp.h"
-#include "dallasTemperature.h"
 #include <Adafruit_MCP23X17.h>
 #include "globals.h"
-#include "I2Cadc.h"
 
 #define I2C_DEBUG
 

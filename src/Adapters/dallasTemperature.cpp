@@ -3,7 +3,8 @@
 // License as published by the Free Software Foundation; either
 // version 2.1 of the License, or (at your option) any later version.
 
-#include "DallasTemperature.h"
+//#include "DallasTemperature.h"
+#include "dallasTemperature.h"
 
 // for Particle support
 // yield() is not a standard function, but instead wraps Particle process
@@ -1085,7 +1086,7 @@ void DallasTemperature::processAlarms(void) {
 }
 
 // sets the alarm handler
-void DallasTemperature::setAlarmHandler(const AlarmHandler *handler) {
+void DallasTemperature::setAlarmHandler(AlarmHandler *handler) {
 	_AlarmHandler = handler;
 }
 

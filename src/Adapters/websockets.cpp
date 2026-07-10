@@ -4,8 +4,8 @@
 
 
 #include "WebSockets.h"
+#include "websockets.h"
 #include "io_handler.h"
-#include "globals.h"
 #include "rtc_handler.h"
 
 // https://fullstack-web-app-11bd44d807f2.herokuapp.com/
@@ -209,8 +209,7 @@ uint8_t WebSocket::handleReadCommand(String cmd_data)
         }
     
 
-       else if (cmd_data.equals("bat")) 
-       {
+        else if (cmd_data.equals("bat")) {
             // Read the current battery level and convert it to a percentage
             int batteryPercent = (batteryLevel * 100) / FULL_BATTERY_CHARGE; // Assuming batteryLevel is always up to date
             msg = "Battery: " + String(batteryPercent) + "%";

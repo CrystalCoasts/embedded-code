@@ -1,5 +1,4 @@
 #include "DOSensor.h"
-#include <iostream>
 
 DOSensor& DO = DOSensor::get();
 

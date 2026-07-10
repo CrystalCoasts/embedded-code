@@ -2,6 +2,7 @@
 .pio/
 .pioenvs/
 .piolibdeps/
+.cache
 
 # VSCode specific
 .vscode/
@@ -18,8 +19,13 @@ __pycache__/
 
 # Ignore sensitive data
 secrets.h
+.env
 
 # Ignore other unnecessary files
 .history/
 .DS_Store
 src/.DS_Store
+
+# clangd system specific
+compile_commands.json
+src/.cache

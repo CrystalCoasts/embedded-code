@@ -4,6 +4,11 @@
 #define networkTimeout 60000    //1 Minute of network connection waiting
 #define checkSignal false
 
+// If the token isn't injected, use a fallback so the IDE linter stays happy.
+#ifndef READ_KEY
+#define READ_KEY "MISSING_TOKEN"
+#endif
+
 const char apn[]  =  "m2mglobal"; //"iot.1nce.net"     //Set your APN depending on sim used
 const char gprsUser[] = "";
 const char gprsPass[] = "";
@@ -18,7 +23,7 @@ HttpClient http(client, server, port);
 
 //Unsused, was used for debugging
 void printHeapStatus(const char* tag) {
-    Serial.printf("[%s] Free heap: %d, Largest free block: %d\n", 
+    Serial.printf("[%s] Free heap: %zu, Largest free block: %zu\n", 
                   tag, 
                   heap_caps_get_free_size(MALLOC_CAP_8BIT),
                   heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
@@ -343,13 +348,15 @@ bool Cellular::gprsConnect()    {
                 String r = mySerial2.readString();
                 Serial.println(r);
             }
-        }else
+            return true;
+        } else {
             Serial.println("Could not connect to network!");
             return false;
+        }
 
+    } else {
         return true;
-    }else
-        return true;
+    }
 }
 
 bool Cellular::isConnected()    {
@@ -423,6 +430,7 @@ bool Cellular::serverConnect(const char* server, const char* resource)  {
 bool Cellular::setJsonHeader()  {
     if(!sim.IsServerConnected()) {
         Serial.println("Server not connected.");
+        return false;
     }else   {
         sim.sendData("AT+SHCHEAD");     //clears head
         sim.sendData("AT+SHAHEAD=\"Content-Type\", \"application/json\"");      //sets json type
@@ -430,10 +438,9 @@ bool Cellular::setJsonHeader()  {
         sim.sendData("AT+SHAHEAD=\"Cache-control\", \"no-cache\"");             //no cache
         sim.sendData("AT+SHAHEAD=\"Connection\", \"keep-alive\"");              //doesnt let connection die
         sim.sendData("AT+SHAHEAD=\"Accept\", \"*/*\"");                         //Accept any type of data
-        sim.sendData("AT+SHAHEAD=\"Authorization\", \"Bearer f0fa3eaa-7ffd-43b9-8834-4fdddcd1bc95\"");     //Accept any type of data
+        sim.sendData("AT+SHAHEAD=\"Authorization\", \"Bearer " READ_KEY "\"");     //Accept any type of data
         return true;
     }
-    
 }
 
 bool Cellular::sendPostRequest(String jsonPayload) {
@@ -658,6 +665,7 @@ bool Cellular::IsServerConnected()  {   //checks if device is connected to domai
 
 
 // DONT USE
+/* 
 String prepareJson(String json)  {
     StaticJsonDocument<256> doc;
     String jsonPayload = json;
@@ -665,4 +673,5 @@ String prepareJson(String json)  {
     jsonPayload.replace("\"", "\\\"");
     jsonPayload = "\"" + jsonPayload + "\""; 
     return jsonPayload;
-}
+} 
+*/

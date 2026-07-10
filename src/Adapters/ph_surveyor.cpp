@@ -15,11 +15,13 @@ currently unsupported IO.
 */
 
 
+/* 
 #if ARDUINO >= 100
 #include "Arduino.h"
 #else
 #include "WProgram.h"
-#endif
+#endif 
+*/
 
 #include "ph_surveyor.h"
 #include "I2Cadc.h"

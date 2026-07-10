@@ -1,5 +1,4 @@
 #include "SalinitySensor.h"
-#include <iostream>
 
 String EC_TAG = "[EC_SENSOR] ";
 SalinitySensor& sal = SalinitySensor::Get();
