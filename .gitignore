@@ -25,6 +25,7 @@ secrets.h
 .history/
 .DS_Store
 src/.DS_Store
+espMonitor_output.txt
 
 # clangd system specific
 compile_commands.json

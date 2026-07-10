@@ -25,7 +25,7 @@
 //helpers
 #include "io_handler.h" //this includes SdFat32
 #include "rtc_handler.h" // includes ntp related headers
-#include "websockets.h"
+//#include "websockets.h"
 
 // error tags
 #define SD_TAG "[SD_CARD]"
@@ -39,7 +39,6 @@
 #define HALF_MINUTE_US (MINUTE_US / 2)
 #define QUARTER_MINUTE_US (MINUTE_US / 4)
 #define HALF_MINUTE_MS (MINUTE_MS / 2)
-#define LED_PIN 2  
 #define BATTERY_PIN 27
 
 // ESP32 LilyGO T-SIM7000G SD Card Pins
@@ -167,7 +166,7 @@ void setup() {
     batteryLevel = prefs.getUInt("batteryLevel", BATTERY_CHARGE); // Default to full charge if not set
     prefs.end();
     rtc_begin();
-    ws.init();
+    //ws.init();
 
     //create tasks and setup powerOff timer
     lastUpdateTime = millis(); // Set initial time for battery updates
@@ -350,7 +349,7 @@ void powerOffSequence() {
     loadTimerSettings();
     stopSensorTask();
     stopUploadTask();
-    ws.stop();
+    //ws.stop();
 
     // Calculate next wakeup time and adjust USER_POWER_ON
     uint64_t power_on = (USER_POWER_ON < SYSTEM_POWER_ON) ? USER_POWER_ON : SYSTEM_POWER_ON;
