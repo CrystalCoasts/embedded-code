@@ -237,17 +237,25 @@ void uploadTask(void *pvParameters) {
 
         #endif
 
+        // 1. Grab the SD Mutex FIRST (Matching save functions)
+        if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
+            
+            // 2. NOW it is safe to interact with the SD card
             File root, file;
-            if (!(root = SD.open(JSON_DIR_PATH, FILE_READ))) {          // Attempts to open json file
+            if (!(root = SD.open(JSON_DIR_PATH, FILE_READ))) {         // Attempts to open json file
                 Serial.println("Failed to open directory");
-                vTaskDelay(pdMS_TO_TICKS(10000));                       // Wait for 10 seconds before retrying
+                xSemaphoreGive(sdCardMutex); // CRITICAL: Give it back before retrying
+                vTaskDelay(pdMS_TO_TICKS(10000));            // Wait for 10 seconds before retrying
                 continue;
             }
 
             String fileName;
-            if(xSemaphoreTake(simCardMutex, pdMS_TO_TICKS(5000)) && xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000)))    { 
-
-                while ((file = root.openNextFile())) {                    // Loops while directory is not empty
+            
+            // 3. Grab the SIM Mutex SECOND
+            if (xSemaphoreTake(simCardMutex, pdMS_TO_TICKS(5000))) { 
+                
+                // loop through all files in directory and attempt to upload
+                while ((file = root.openNextFile())) {
                     if (file.isDirectory()) {
                         file.close();
                         continue;
@@ -294,14 +302,24 @@ void uploadTask(void *pvParameters) {
                         Serial.println("Not all lines in the file were uploaded successfully.");
                     }
                 }
+                
+                // 4. Loop execution complete, Give both mutexes back in reverse order to Taking them
                 xSemaphoreGive(simCardMutex);
                 xSemaphoreGive(sdCardMutex);
-            }else   {
-                Serial.println("Couldnt get SD and Sim mutex");
+                
+            } else {
+                Serial.println("Couldn't get Sim mutex");
+                // CRITICAL: Give back the SD mutex since failed to get SIM mutex
+                xSemaphoreGive(sdCardMutex);
             }
+            
             root.close();
-            vTaskDelay(pdMS_TO_TICKS(10000));                           // Delay before next execution cycle
+            
+        } else {
+            Serial.println("Couldn't get SD mutex");
         }
+        vTaskDelay(pdMS_TO_TICKS(10000));                           // Delay before next execution cycle
+    }
         
 }
 
