@@ -329,6 +329,12 @@ void uploadTask(void *pvParameters) {
 // Timer callback function
 void shutdownTimerCallback(TimerHandle_t xTimer) {
     Serial.println("Power-off timer expired. Checking current time.");
+    // CRITICAL: Do not kill the power if an upload is currently in progress
+    if (uploadDataTaskRunning) {
+        Serial.println("Upload in progress! Delaying shutdown by 15 seconds...");
+        xTimerChangePeriod(shutdownTimerHandle, pdMS_TO_TICKS(15000), 0);
+        return; // Exit the callback without powering down
+    }
     struct tm timeinfo = get_current_time();
 
     #ifndef CELLULAR

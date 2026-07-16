@@ -327,10 +327,10 @@ String generateFileName(const String& directoryPath, const struct tm& timeinfo, 
 
 bool saveCSVData(fs::FS &fs, const String& data) {
     // 1. Try to take the SD mutex first
-    if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
+    if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(30000))) {
         
         // 2. Try to take the SIM mutex second
-        if (xSemaphoreTake(simCardMutex, pdMS_TO_TICKS(5000))) {
+        if (xSemaphoreTake(simCardMutex, pdMS_TO_TICKS(30000))) {
             
             tm timeinfo;
 
@@ -397,10 +397,10 @@ bool saveCSVData(fs::FS &fs, const String& data) {
 
 bool saveJsonData(fs::FS &fs, const String &data) {
     // 1. Try to take the SD mutex first
-    if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
+    if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(30000))) {
 
         // 2. Try to take the SIM mutex second
-        if (xSemaphoreTake(simCardMutex, pdMS_TO_TICKS(5000))) {
+        if (xSemaphoreTake(simCardMutex, pdMS_TO_TICKS(30000))) {
                 
             struct tm timeinfo;
             Serial.println("Saving data to JSON file...");
