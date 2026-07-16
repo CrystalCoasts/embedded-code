@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <ArduinoJson.h>
+#include <cstdint>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h>
@@ -71,10 +72,12 @@ Preferences prefs;
 volatile uint16_t batteryLevel = BATTERY_CHARGE ; // Default battery level
 unsigned long lastUpdateTime = 0;
 
-
+#ifndef POWER_ON_TIMER
+#define POWER_ON_TIMER 3
+#endif
 // timers
 // volatile uint64_t powerOnTimer = (3600 * 1000) * 2;  // 2 hours
-uint64_t SYSTEM_POWER_ON = 3 * MINUTE_US;   //powers on after 25 minutes
+uint64_t SYSTEM_POWER_ON = uint64_t(POWER_ON_TIMER) * MINUTE_US;   //powers on after 25 minutes
 volatile uint64_t USER_POWER_ON = 5 * HOUR_US;
 
 uint64_t SYSTEM_POWER_OFF = 3 * MINUTE_MS;  // powers off after 5 minutes
@@ -350,8 +353,8 @@ void shutdownTimerCallback(TimerHandle_t xTimer) {
     #else
         if(timeinfo.tm_hour < 6 || timeinfo.tm_hour > 19)       //checks if time if before 6AM or more than 7PM
             SYSTEM_POWER_ON = 55 * MINUTE_US;                   //sets poweroff timer to wak up once an hour
-        else
-            SYSTEM_POWER_ON = 3 * MINUTE_US;                   //sets poweroff timer to wake up twice an hour
+        //else
+        //    SYSTEM_POWER_ON = 3 * MINUTE_US;                   //sets poweroff timer to wake up twice an hour
 
         Serial.println("Power-off timer expired. Executing power down for" + String((float)(SYSTEM_POWER_ON/(60000000))));
 
