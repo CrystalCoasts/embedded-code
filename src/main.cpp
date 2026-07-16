@@ -9,6 +9,7 @@
 #include <esp_sleep.h>
 
 #include <esp_task_wdt.h>
+#include <string>
 
 #include "globals.h"
 
@@ -73,15 +74,22 @@ volatile uint16_t batteryLevel = BATTERY_CHARGE ; // Default battery level
 unsigned long lastUpdateTime = 0;
 
 #ifndef POWER_ON_TIMER
-#define POWER_ON_TIMER 3
+#define POWER_ON_TIMER "3"
 #endif
+#ifndef POWER_OFF_TIMER
+#define POWER_OFF_TIMER "3"
+#endif
+#ifndef READ_RATE
+#define READ_RATE "30"
+#endif
+
 // timers
 // volatile uint64_t powerOnTimer = (3600 * 1000) * 2;  // 2 hours
-uint64_t SYSTEM_POWER_ON = uint64_t(POWER_ON_TIMER) * MINUTE_US;   //powers on after 25 minutes
+uint64_t SYSTEM_POWER_ON = std::stoi(POWER_ON_TIMER) * MINUTE_US;   //powers on after 25 minutes
 volatile uint64_t USER_POWER_ON = 5 * HOUR_US;
 
-uint64_t SYSTEM_POWER_OFF = 3 * MINUTE_MS;  // powers off after 5 minutes
-const uint64_t SENSOR_TASK_TIMER =  30000;  //HALF_MINUTE_MS; // 30 seconds, for tasks
+uint64_t SYSTEM_POWER_OFF = std::stoi(POWER_OFF_TIMER) * MINUTE_MS;  // powers off after 5 minutes
+const uint64_t SENSOR_TASK_TIMER =  std::stoi(READ_RATE) * SECOND_MS;  //HALF_MINUTE_MS; // 30 seconds, for tasks
 
 //tasks semaphores
 SemaphoreHandle_t sdCardMutex;

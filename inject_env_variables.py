@@ -23,7 +23,9 @@ required_keys = [
     "PH_SENSOR_TYPE", 
     "DO_SENSOR_ID", 
     "DO_SENSOR_TYPE",
-    "POWER_ON_TIMER"
+    "POWER_ON_TIMER",
+    "POWER_OFF_TIMER",
+    "READ_RATE"
 ]
 found_keys = []
 permitted_sensor_types = ["float", "int", "char", "media"]
