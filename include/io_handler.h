@@ -59,11 +59,15 @@ void sendGetRequest();
 
 //json
 String prepareJsonPayload(const SensorData& data);
+String prepareJsonPayload(const SensorData& data, const struct tm& timeinfo);
 bool saveJsonData(fs::FS &fs, const String &data);
+bool saveJsonData(fs::FS &fs, const String &data, const struct tm& timeinfo);
 
 //csv
 String prepareCSVPayload(const SensorData& data);
+String prepareCSVPayload(const SensorData& data, const struct tm& timeinfo);
 bool saveCSVData(fs::FS &fs, const String& data);
+bool saveCSVData(fs::FS &fs, const String& data, const struct tm& timeinfo);
 String readDataFromSD(fs::FS &fs, const char* fileName);
 
 bool is_time_synced();

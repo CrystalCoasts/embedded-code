@@ -288,11 +288,96 @@ String prepareJsonPayload(const SensorData& data) {
 
     return jsonPayload;
 }
+// prepare json payload with a passed timeinfo
+String prepareJsonPayload(const SensorData& data, const struct tm& timeinfo) {     
+    StaticJsonDocument<1024> doc;
 
+    //Creates readInfo array
+    doc["sensorArrayID"] = SENSOR_ARRAY_ID;    //creates empty array called readInfo
+    JsonArray jsArr = doc.createNestedArray("readInfo");        //creates huge array called readInfo
+
+    //creates humidity sensor object
+    JsonObject humDoc = jsArr.createNestedObject();     //stores object in array for humidity
+    humDoc["id"] = HUM_SENSOR_ID;
+    humDoc["type"] = HUM_SENSOR_TYPE;
+    humDoc["readVal"] = String(data.humidity,3);
+
+    //creates a temperature sensor object
+    JsonObject tempDoc = jsArr.createNestedObject();    //object for temp
+    tempDoc["id"] = TEMP_SENSOR_ID;
+    tempDoc["type"] = TEMP_SENSOR_TYPE;
+    tempDoc["readVal"] = String(data.temperature,3);
+
+    //creates a turbidity sensor object
+    JsonObject turbDoc = jsArr.createNestedObject();   //object for turbidity
+    turbDoc["id"] = TURB_SENSOR_ID;
+    turbDoc["type"] = TURB_SENSOR_TYPE;
+    turbDoc["readVal"] = String(data.turbidity, 3);
+
+    //creates a salinity sensor object
+    JsonObject salDoc = jsArr.createNestedObject();     //object for salinity
+    salDoc["id"] = SAL_SENSOR_ID;
+    salDoc["type"] = SAL_SENSOR_TYPE;
+    salDoc["readVal"] = String(data.salinity,3);
+
+    //creates a conductivity sensor object
+    JsonObject ecDoc = jsArr.createNestedObject();      //object for EC
+    ecDoc["id"] = EC_SENSOR_ID;
+    ecDoc["type"] = EC_SENSOR_TYPE;
+    ecDoc["readVal"] = String(data.ec,3);
+
+    //creates a tds object
+    JsonObject tdsDoc = jsArr.createNestedObject();     //object for TDS
+    tdsDoc["id"] = TDS_SENSOR_ID;
+    tdsDoc["type"] = TDS_SENSOR_TYPE;
+    tdsDoc["readVal"] = String(data.tds,3);
+
+    //creates a ph object
+    JsonObject phDoc = jsArr.createNestedObject();      //object for pH
+    phDoc["id"] = PH_SENSOR_ID;
+    phDoc["type"] = PH_SENSOR_TYPE;
+    phDoc["readVal"] = String(data.pH, 3);
+
+    //creates a dissolved oxygen object
+    JsonObject doDoc = jsArr.createNestedObject();      //object for DO
+    doDoc["id"] = DO_SENSOR_ID;
+    doDoc["type"] = DO_SENSOR_TYPE;
+    doDoc["readVal"] = String(data.oxygenLevel, 3);
+
+    // Add date object
+    JsonObject dateObj = doc.createNestedObject("date");    //object for date
+    dateObj["year"] = String(timeinfo.tm_year);
+    dateObj["month"] = String(timeinfo.tm_mon + 1);
+    dateObj["day"] = String(timeinfo.tm_mday);
+    dateObj["hour"] = String(timeinfo.tm_hour);
+    dateObj["minute"] = String(timeinfo.tm_min);
+    dateObj["second"] = String(timeinfo.tm_sec);
+
+    // Add arrayInfo object
+    JsonObject arrayInfo = doc.createNestedObject("arrayInfo");     //object for sensor array ID
+    arrayInfo["id"] = SENSOR_ARRAY_ID;
+
+    String jsonPayload;
+    serializeJson(doc, jsonPayload);
+
+    return jsonPayload;
+}
 
 
 String prepareCSVPayload(const SensorData& data)    {
     const tm& timeinfo = get_current_time();
+    return String(data.humidity, 3) + ", " + String(data.temperature, 3) +
+        ", " + String(data.turbidity, 3) + ", " + String(data.salinity, 3) + 
+        ", " + String(data.tds, 3) + ", " + String(data.ec, 3) + ", "
+        ", " + String(data.pH, 3) + ", " +
+        String(data.oxygenLevel, 3) + ", " + 
+        (timeinfo.tm_mon+1) + ", " +
+        timeinfo.tm_mday + ", " + 
+        (timeinfo.tm_year) + ", " + 
+        timeinfo.tm_hour + ":" + timeinfo.tm_min + ":" + timeinfo.tm_sec;   
+}
+// prepare csv payload with a passed timeinfo
+String prepareCSVPayload(const SensorData& data, const struct tm& timeinfo)    {
     return String(data.humidity, 3) + ", " + String(data.temperature, 3) +
         ", " + String(data.turbidity, 3) + ", " + String(data.salinity, 3) + 
         ", " + String(data.tds, 3) + ", " + String(data.ec, 3) + ", "
@@ -394,6 +479,39 @@ bool saveCSVData(fs::FS &fs, const String& data) {
         return false;
     }
 }
+// save CSV data with passed timeinfo, REQUIRES SD CARD MUTEX OUTSIDE of function call
+bool saveCSVData(fs::FS &fs, const String& data, const struct tm& timeinfo){
+    Serial.println("Saving data to CSV file...");
+    String fileExtension = "csv";
+    String directoryPath = CSV_DIR_PATH;
+    File file;
+    if(!fs.exists(directoryPath))  {                    //Checks for directory in SD card
+        fs.mkdir(directoryPath);
+        Serial.println("made directory for csv!");
+    }
+
+    String filename = generateFileName(directoryPath, timeinfo, fileExtension); //generates a filename using passed timeinfo
+    file = fs.open(filename, FILE_APPEND);  //opens the directory path to append
+    if(!file)    {       //if cant open file to append/doesn't exist, create said file and write the headers
+        Serial.println("Couldnt open CSV file to append/write. Creating new file");
+        String header = "Humidity, Temperature, Turbidity, Salinity, TDS, pH, Disolved Oxygen, Month, Day, Year, Time"; 
+        file = fs.open(filename, FILE_WRITE, true);
+        file.println(header);
+    }else{
+        Serial.println("Opened CSV file for appending!");
+    }
+    
+    if(file.println(data)) {        //checks if it can print data to file
+        Serial.println("CSV Data saved successfully.");
+        file.close();
+        return true;
+    } 
+    else {
+        Serial.println("Failed to save CSV data.");
+        file.close();
+        return false;
+    }
+}
 
 bool saveJsonData(fs::FS &fs, const String &data) {
     // 1. Try to take the SD mutex first
@@ -457,6 +575,39 @@ bool saveJsonData(fs::FS &fs, const String &data) {
         
     } else {
         Serial.println("Failed to obtain SD Card mutex for writing JSON.");
+        return false;
+    }
+}
+// save JSON data with passed timeinfo, REQUIRES SD CARD MUTEX OUTSIDE of function call
+bool saveJsonData(fs::FS &fs, const String &data, const struct tm& timeinfo){
+    Serial.println("Saving data to JSON file...");
+    File file;
+    Serial.println(data);
+
+    String directoryPath = JSON_DIR_PATH;
+    if(!fs.exists(directoryPath))  {        //checks for the directory
+        fs.mkdir(directoryPath);            //makes directory  
+        Serial.println("made directory for json!");
+    }
+
+    String fileExtension = "json";
+    String filename = generateFileName(directoryPath, timeinfo, fileExtension);
+    file = fs.open(filename, FILE_APPEND);  // tries to open existing directory path to append
+    if(!file)    {       //if cant open file to append/doesn't exist, create said file
+        Serial.println("Couldnt open json file to append/write. Creating new file");
+        file = fs.open(filename, FILE_WRITE, true);
+    }else{
+        Serial.println("Opened json file for appending!");
+    }
+
+    if(file.println(data)) {        //checks if it can print data to file
+        Serial.println("json Data saved successfully.");
+        file.close();
+        return true;
+    } 
+    else {
+        Serial.println("Failed to save json data.");
+        file.close();
         return false;
     }
 }

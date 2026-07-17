@@ -11,6 +11,7 @@
 #include <esp_task_wdt.h>
 #include <string>
 
+#include "HardwareSerial.h"
 #include "globals.h"
 
 // Sensor headers
@@ -106,6 +107,8 @@ bool webSocketTaskRunning = false;
 bool uploadDataTaskRunning= false;
 bool batteryTaskRunning = false;
 
+bool dataSaved = false; // marked when the sensors successfully read and saved data (used to start attempting uploads)
+
 //task functions and callbacks
 void sensorTask(void *pvParameters);
 void uploadTask(void *pvParameters);
@@ -198,7 +201,68 @@ void loop() {
 
 /* TASKS */
 void sensorTask(void *pvParameters) {
-    
+    struct tm timeinfo;
+    bool timeObtained = false;
+    while (!timeObtained) { // tries to obtain time in loop to retry if it fails
+        if (xSemaphoreTake(simCardMutex, pdMS_TO_TICKS(5000))) { // acquire simCardMutex to get time
+            if(getCurrentTime(timeinfo)){ // tries to getCurrentTime
+                timeinfo = get_current_time(); // sets the current time to timeinfo to be used for saving sensor reads
+                Serial.println("[TASKS] Successfully obtained time for sensor reads");
+                xSemaphoreGive(simCardMutex);
+                timeObtained = true;
+            } else {
+                Serial.println("[TASKS] sensorTask: failed to getCurrentTime for sensor reads");
+                vTaskDelay(pdMS_TO_TICKS(5000));
+            }
+        } else {
+            Serial.println("[TASKS] sensorTask: failed to take sim mutex to get time");
+            vTaskDelay(pdMS_TO_TICKS(5000));
+        }
+    }
+
+    sensorTaskRunning = true;                                           // Used to stop task later when sleeping
+    //read the sensor data
+    SensorData data;                                            //Initializes sensor data structure
+    readSensorData(data);                                       // Reads data
+    printDataOnCLI(data);                                       // Prints onto terminal
+    bool csvDataSaved = false;
+    bool jsonDataSaved = false;
+    // begin saving sensor data
+    while (sensorTaskRunning) {
+        Serial.println("[TASKS] Sensor task running");
+        // attempt to get sd card mutex
+        if (xSemaphoreTake(sdCardMutex, pdMS_TO_TICKS(5000))) {
+            // attempt to save csv data if it wasn't already saved
+            if(!csvDataSaved && saveCSVData(SD, prepareCSVPayload(data), timeinfo)) {
+                csvDataSaved = true;
+            } else if(!csvDataSaved){
+                Serial.println("[TASKS] Failed to save CSV data.");
+            }
+            // attempt to save json data if it already wasn't saved
+            if(!jsonDataSaved && saveJsonData(SD, prepareCSVPayload(data), timeinfo)) {
+                jsonDataSaved = true;
+            } else if(!jsonDataSaved){
+                Serial.println("[TASKS] Failed to save JSON data.");
+            }
+
+            // check if all data is saved
+            if (jsonDataSaved && csvDataSaved) {
+                sensorTaskRunning = false;
+                Serial.println("[TASKS] Successfully saved all data!");
+                xSemaphoreGive(sdCardMutex);
+                dataSaved = true;
+            } else {
+                vTaskDelay(pdMS_TO_TICKS(1000));
+            }
+        } else {
+            Serial.println("[TASKS] sensorTask: failed to take sd mutex to save data");
+            vTaskDelay(pdMS_TO_TICKS(5000));
+        }
+    }
+}
+/*
+void sensorTask1(void *pvParameters) {
+
     sensorTaskRunning = true;                                           // Used to stop task later when sleeping
     while (sensorTaskRunning) {
             Serial.println("[TASKS] Sensor task running");
@@ -228,9 +292,16 @@ void sensorTask(void *pvParameters) {
     vTaskDelay(pdMS_TO_TICKS(10000));
     vTaskDelete(NULL);                                                  // Optionally delete the task explicitly
 }
+*/
 
 void uploadTask(void *pvParameters) {
     for (;;) {
+        // checks if data was saved by sensors since startup, 
+        // if not continue until it has been saved to avoid sensor never getting a read successfully
+        if(!dataSaved) {
+            vTaskDelay(pdMS_TO_TICKS(2000));
+            continue;
+        }
         #ifndef CELLULAR
             // attempts to connect to wifi to send data
             if (WiFi.status() != WL_CONNECTED) {
