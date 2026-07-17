@@ -239,7 +239,7 @@ void sensorTask(void *pvParameters) {
                 Serial.println("[TASKS] Failed to save CSV data.");
             }
             // attempt to save json data if it already wasn't saved
-            if(!jsonDataSaved && saveJsonData(SD, prepareCSVPayload(data), timeinfo)) {
+            if(!jsonDataSaved && saveJsonData(SD, prepareJsonPayload(data), timeinfo)) {
                 jsonDataSaved = true;
             } else if(!jsonDataSaved){
                 Serial.println("[TASKS] Failed to save JSON data.");
@@ -253,6 +253,7 @@ void sensorTask(void *pvParameters) {
                 dataSaved = true;
             } else {
                 vTaskDelay(pdMS_TO_TICKS(1000));
+                xSemaphoreGive(sdCardMutex); // give sdCardMutex so that it can take it again (needs rewrite)
             }
         } else {
             Serial.println("[TASKS] sensorTask: failed to take sd mutex to save data");
