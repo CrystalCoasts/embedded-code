@@ -259,6 +259,9 @@ void sensorTask(void *pvParameters) {
             vTaskDelay(pdMS_TO_TICKS(5000));
         }
     }
+    // Clean up and delete task before completing task code to avoid crash
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    vTaskDelete(NULL);  
 }
 /*
 void sensorTask1(void *pvParameters) {
