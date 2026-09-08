@@ -8,9 +8,9 @@
 ; Please visit documentation for the other options and examples
 ; https://docs.platformio.org/page/projectconf.html
 
-[env:esp32]
+[env:esp32dev]
 platform = espressif32
-board = esp-wrover-kit
+board = esp32dev
 monitor_speed = 115200
 framework = arduino
 board_build.partitions = min_spiffs.csv
@@ -33,6 +33,3 @@ lib_deps =
 	arduino-libraries/ArduinoHttpClient@^0.6.1
 	adafruit/Adafruit ADS1X15@^2.5.0
 	nickgammon/Regexp@^0.1.0
-extra_scripts = 
-	pre:gen_clang_compile_commands.py
-	pre:inject_env_variables.py

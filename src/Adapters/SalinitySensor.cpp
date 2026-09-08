@@ -1,5 +1,4 @@
 #include "SalinitySensor.h"
-#include <iostream>
 
 String EC_TAG = "[EC_SENSOR] ";
 SalinitySensor& sal = SalinitySensor::Get();
@@ -18,7 +17,7 @@ void SalinitySensor::begin() {
     
     // Checks if calibrated
     ec.send_cmd("Cal,?");
-    delay(500);
+    delay(1000);
     ec.receive_cmd(ec_data, sizeof(ec_data));
 
     if (parseValue(ec_data, parsedData, "?Cal")) {
@@ -98,7 +97,7 @@ bool SalinitySensor::readSalinity(float* salinity) {
     wake(); //wakes device with ioExtender
 
     //enable only salinity reading
-    delay(500);
+    delay(1000);
     EnableDisableSingleReading(EC, 0);
     EnableDisableSingleReading(TDS, 0);
     EnableDisableSingleReading(SG, 0);

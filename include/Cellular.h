@@ -8,7 +8,7 @@ I used this manual to find all the AT commands and their functions: https://cdn.
 */
 
 #ifndef CELLULAR_H
-#define CELLUAR_H
+#define CELLULAR_H
 
 #define TINY_GSM_MODEM_SIM7000SSL       //TinyGSM required the model to be specified - Specifically with SSL (https) methods
 #define TINY_GSM_RX_BUFFER 1024 // Set RX buffer to 1Kb

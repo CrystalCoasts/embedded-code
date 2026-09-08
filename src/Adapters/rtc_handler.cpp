@@ -1,6 +1,5 @@
 #include "rtc_handler.h"
 #include "esp_sntp.h"
-#include "NTPClient.h"
 #include "globals.h"
 
 // Preferences preferences;
@@ -46,6 +45,7 @@ struct tm get_current_time() {
 bool getCurrentTime(tm timeinfo) {        //Cellular
     if(is_time_synced())   {            //if time is already synced, just grab local time.
         getLocalTime(&timeinfo, 500);
+        return true;
     }else{
         if(!sim.isGprsConnected())  {       //end if not connected to internet.
             time_synced = false;

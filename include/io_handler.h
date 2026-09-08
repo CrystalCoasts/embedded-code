@@ -15,6 +15,8 @@
 // #include <base_surveyor.h>
 #include "DOSensor.h"
 #include "esp_heap_caps.h"
+#include "AtlasTemp.h"
+#include "AtlasPH.h"
 
 #define IO_RXD2 47
 #define IO_TXD2 48
@@ -57,11 +59,15 @@ void sendGetRequest();
 
 //json
 String prepareJsonPayload(const SensorData& data);
+String prepareJsonPayload(const SensorData& data, const struct tm& timeinfo);
 bool saveJsonData(fs::FS &fs, const String &data);
+bool saveJsonData(fs::FS &fs, const String &data, const struct tm& timeinfo);
 
 //csv
 String prepareCSVPayload(const SensorData& data);
+String prepareCSVPayload(const SensorData& data, const struct tm& timeinfo);
 bool saveCSVData(fs::FS &fs, const String& data);
+bool saveCSVData(fs::FS &fs, const String& data, const struct tm& timeinfo);
 String readDataFromSD(fs::FS &fs, const char* fileName);
 
 bool is_time_synced();

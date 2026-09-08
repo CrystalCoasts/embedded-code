@@ -22,7 +22,7 @@ public:
     void calibrate();
     void sleep();
     void wake();
-    static constexpr short EN_S = 0;    //EN pin to sleep device
+    static constexpr short EN_S = 1;    //EN pin to sleep device
 
 private:
     String ecName = "SAL";

@@ -16,7 +16,7 @@ uint8_t MCP::readPinStateA()   {
     Wire.write(GPIOA);                  //access gpioA data bits
     Wire.endTransmission();             //end writing
 
-    Wire.requestFrom(ADDR, (uint8_t) 1);        //request byte from GPIOA bus
+    Wire.requestFrom(ADDR, 1);        //request byte from GPIOA bus
     if(Wire.available())    {
         uint8_t out = Wire.read();              //read 
         Serial.println(out);
@@ -30,7 +30,7 @@ uint8_t MCP::readPinStateB()    {
     Wire.write(GPIOB);                      //access gpioB
     Wire.endTransmission();                 //end writing transmision
 
-    Wire.requestFrom(ADDR, (uint8_t) 1);    //send read request
+    Wire.requestFrom(ADDR, 1);    //send read request
     if(Wire.available())    {
         uint8_t out = Wire.read();          //sets read into variable
         Serial.println(out);
@@ -45,7 +45,7 @@ uint8_t MCP::readDirA()  {
     Wire.beginTransmission(ADDR);           //begin i2c transmission
     Wire.write(IODIRA);                     //access IO directin A (out/input)
     Wire.endTransmission();                 //end write request
-    Wire.requestFrom(ADDR, (uint8_t) 1);    //begin read request
+    Wire.requestFrom(ADDR, 1);    //begin read request
     if(Wire.available())  {
         uint8_t out = Wire.read();          //read register
         Serial.println(out);
@@ -57,7 +57,7 @@ uint8_t MCP::readDirB()  {
     Wire.beginTransmission(ADDR);           //begin i2c transmission
     Wire.write(IODIRB);                     //access io direction B (out/input)
     Wire.endTransmission();
-    Wire.requestFrom(ADDR, (uint8_t) 1);    //request read
+    Wire.requestFrom(ADDR, 1);    //request read
     if(Wire.available())  {
         uint8_t out = Wire.read();          //read io direction register
         Serial.println(out);

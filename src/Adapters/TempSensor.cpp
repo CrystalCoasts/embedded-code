@@ -18,8 +18,11 @@ TempSensor& TempSensor::Get(){
 }
 
 void TempSensor::begin(){
+    wake();
+    delay(600);
     dht.begin();
     sensors.begin();
+    sleep();
 }
 
 bool TempSensor::readTemp(TEMP tempScale, float* temperature)   {
@@ -27,6 +30,9 @@ bool TempSensor::readTemp(TEMP tempScale, float* temperature)   {
 }
 
 bool TempSensor::readHumidity(float* humidity) {
+
+    wake();
+    delay(600); // Allow time for the sensor to stabilize
     if (humidity == nullptr) {
         return false; // Invalid pointer
     }
@@ -41,10 +47,15 @@ bool TempSensor::readHumidity(float* humidity) {
 
     // Assign the humidity value to the provided pointer
     *humidity = h;
+    sleep();
     return true; // Successful read
 }
 
 bool TempSensor::readTemperature(TEMP tempScale, float* temperature) {
+
+    wake();
+    delay(600);
+
     if (temperature == nullptr) {
         return false; // Invalid pointer
     }
@@ -67,8 +78,10 @@ bool TempSensor::readTemperature(TEMP tempScale, float* temperature) {
             break;
 
         default:
+            sleep();
             return false; // Unsupported temperature scale
     }
+    sleep();
 
     return true; // Successful read
 }
@@ -76,3 +89,11 @@ bool TempSensor::readTemperature(TEMP tempScale, float* temperature) {
 int TempSensor::findDevices()   {
     return 0;
 }
+
+void TempSensor::sleep() {
+    mcpGlobal.digitalWriteA(EN, LOW); 
+} // Turn off the circuit
+
+void TempSensor::wake() {
+    mcpGlobal.digitalWriteA(EN, HIGH);
+} // Turn on the circuit

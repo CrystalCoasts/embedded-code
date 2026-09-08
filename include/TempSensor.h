@@ -5,6 +5,7 @@
 #include <OneWire.h>
 //#include <DallasTemperature.h>
 #include "dallasTemperature.h"
+#include "ioExtender.h"
 
 
 
@@ -19,7 +20,7 @@ public:
     static constexpr uint8_t DHTPIN = 32;
     static constexpr uint8_t DHTTYPE = DHT22;
     static constexpr uint8_t TEMP_INDEX = 0;
-
+    static constexpr int EN = 2; //EN pin to sleep device
 
     static TempSensor& Get();
     void begin();
@@ -27,8 +28,8 @@ public:
     bool readTemp(TEMP tempScale, float* temperature);
     bool readHumidity(float* humidity);
     int findDevices();
-
-
+    void sleep(); // Turn off the circuit
+    void wake(); // Turn on the circuit
 
 private:
     DHT dht;
