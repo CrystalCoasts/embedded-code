@@ -19,7 +19,8 @@ __pycache__/
 
 # Ignore sensitive data
 secrets.h
-.env
+.env*
+!.env.example
 
 # Ignore other unnecessary files
 .history/
