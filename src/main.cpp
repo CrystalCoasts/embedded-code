@@ -109,6 +109,8 @@ bool batteryTaskRunning = false;
 
 bool dataSaved = false; // marked when the sensors successfully read and saved data (used to start attempting uploads)
 
+constexpr uint8_t MAX_UPLOAD_TRIES = 3; //tries to upload data before giving up until next wake cycle
+
 //task functions and callbacks
 void sensorTask(void *pvParameters);
 void uploadTask(void *pvParameters);
@@ -298,6 +300,10 @@ void sensorTask1(void *pvParameters) {
 */
 
 void uploadTask(void *pvParameters) {
+
+    uint8_t failedUploadTries = 0;
+    bool maxTriesReached = false;
+
     for (;;) {
         // checks if data was saved by sensors since startup, 
         // if not continue until it has been saved to avoid sensor never getting a read successfully
@@ -315,11 +321,23 @@ void uploadTask(void *pvParameters) {
         #else
             if(!sim.isGprsConnected()){                                  // attempts to connect to the cellular network to send data
                     Serial.println("Cellular not connected.");
-                    sim.gprsConnect();
+
+                    if(!sim.gprsConnect()) {
+                        failedUploadTries++;
+
+                        Serial.printf("Cellular connection failed. try %u/%u\n",
+                            failedUploadTries, MAX_UPLOAD_TRIES);
+
+                        if (failedUploadTries >= MAX_UPLOAD_TRIES) {
+                            Serial.println("Maximum upload tries reached.");
+                            break; // Exit the loop if maximum tries reached
+                        }
+                    }
+                    //sim.gprsConnect(); not needed since it is already called in the if statement above
                     vTaskDelay(pdMS_TO_TICKS(5000));                     // Delay before next execution cycle
                     continue;
-            }
-
+                }
+            
         #endif
 
         // 1. Grab the SD Mutex FIRST (Matching save functions)
@@ -365,6 +383,15 @@ void uploadTask(void *pvParameters) {
                                 if (!uploadData(jsonLine)) {
                                     Serial.println("Failed to upload: " + jsonLine);
                                     allLinesUploaded = false;
+
+                                    failedUploadTries++;
+                                    Serial.printf("Upload failed. try %u/%u\n",
+                                        failedUploadTries, MAX_UPLOAD_TRIES);
+
+                                    if (failedUploadTries >= MAX_UPLOAD_TRIES) {
+                                        Serial.println("Maximum upload tries reached.");
+                                        maxTriesReached = true;
+                                    }
                                     uploadDataTaskRunning = false;
                                     break;
                                 }
@@ -382,9 +409,15 @@ void uploadTask(void *pvParameters) {
                     if (allLinesUploaded) {                             //if all lines in the file were upload, removes file from SD
                         SD.remove(String(JSON_DIR_PATH) + "/" + String(fileName)); // Ensure the path is correct
                         Serial.println(String(fileName) + " uploaded and deleted successfully.");
+                        
+                        failedUploadTries = 0; // Reset failed tries after a successful upload
+
                         sim.connected = false;
                     } else {    
                         Serial.println("Not all lines in the file were uploaded successfully.");
+                    }
+                    if(maxTriesReached) {
+                        break; // Exit the loop if maximum tries reached
                     }
                 }
                 
@@ -403,9 +436,20 @@ void uploadTask(void *pvParameters) {
         } else {
             Serial.println("Couldn't get SD mutex");
         }
+
+        if(maxTriesReached) {
+            break; // Exit the loop if maximum tries reached
+        }
+
         vTaskDelay(pdMS_TO_TICKS(10000));                           // Delay before next execution cycle
     }
-        
+    
+    Serial.println("Upload task exiting due to maximum upload tries reached.");
+
+    uploadDataTaskRunning = false; // Mark the task as not running
+    TaskUploadDataHandle = NULL; // Clear the task handle to indicate it's no longer valid
+    vTaskDelete(NULL); // Delete the task to free resources
+
 }
 
 
